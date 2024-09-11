@@ -1,20 +1,28 @@
-import { Editor, MarkdownView, Notice, Plugin, setIcon, getIconIds, ItemView, WorkspaceLeaf, View } from 'obsidian';
+import { Editor, MarkdownView, Notice, Plugin, setIcon } from 'obsidian';
 import { clearInterval } from 'timers';
 
 import { MyPluginSettings, MY_SETTINGS, MySettingTab } from "./src/settings";
 import { MyModal } from "./src/modals";
-import { ExampleView, VIEW_TYPE_EXAMPLE} from "./src/views";
+
+import { ShowIcons } from 'src/widgets/showicons';
+
 
 type StatusBarIconButton = HTMLElement;
 
 export default class MyPlugin extends Plugin {
 	settings: MyPluginSettings;
+	settingTab: MySettingTab;
+
+	showicons: ShowIcons;
 
 	timerDriver: NodeJS.Timer | null = null;
 	timerCount: number = 0;
 
 	async onload() {
 		await this.loadSettings();
+		// This adds a settings tab so the user can configure various aspects of the plugin
+		this.settingTab = new MySettingTab(this.app, this);
+		this.addSettingTab(this.settingTab);
 
 		// This creates an icon in the left ribbon.
 		const ribbonIconEl = this.addRibbonIcon('messages-square', 'Sample Plugin xxx', (evt: MouseEvent) => {
@@ -94,16 +102,8 @@ export default class MyPlugin extends Plugin {
 			}
 		});
 
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new MySettingTab(this.app, this));
-
-		this.registerView(
-			VIEW_TYPE_EXAMPLE,
-			(leaf) => new ExampleView(leaf)
-		);
-		this.addRibbonIcon("shield-plus", "L R View", () => {
-			this.activateView();
-		});
+		this.showicons = new ShowIcons(this);
+		this.showicons.onload();
 
 		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
 		// Using this function will automatically remove the event listener when this plugin is disabled.
@@ -116,20 +116,6 @@ export default class MyPlugin extends Plugin {
 	}
 
 	onunload() {}
-
-	async activateView() {
-		const { workspace } = this.app;
-		let leaf: WorkspaceLeaf | null = null;
-		const leaves = workspace.getLeavesOfType(VIEW_TYPE_EXAMPLE);
-		if (leaves.length > 0) {
-			leaf = leaves[0];
-		} else {
-			leaf = workspace.getLeaf('tab');
-			// workspace.getLeftLeaf
-			await leaf!.setViewState({ type: VIEW_TYPE_EXAMPLE, active: true });
-		}
-		workspace.revealLeaf(leaf!);
-	}
 
 	async loadSettings() {
 		this.settings = Object.assign({}, MY_SETTINGS, await this.loadData());

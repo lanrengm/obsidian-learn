@@ -2,17 +2,20 @@ import { App, Setting, PluginSettingTab } from "obsidian";
 
 import MyPlugin from "../main";
 
+import { ShowIconsSettings, SHOW_ICONS_SETTINGS } from './widgets/showicons';
 
 export interface MyPluginSettings {
 	setting1: string;
 	setting2: string;
 	enableTimer: boolean;
+	showIconSettings: ShowIconsSettings;
 }
 
 export const MY_SETTINGS: MyPluginSettings = {
 	setting1: 'setting 1 default',
 	setting2: 'setting 2 default',
 	enableTimer: false,
+	showIconSettings: SHOW_ICONS_SETTINGS,
 }
 
 export class MySettingTab extends PluginSettingTab {
@@ -47,13 +50,13 @@ export class MySettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName('正向计时器')
 			.setDesc('统计工作时长')
-			.addToggle((toggle) => {
-				toggle
-					.setValue(this.plugin.settings.enableTimer)
-					.onChange(async (value) => {
-						this.plugin.settings.enableTimer = value;
-						await this.plugin.saveSettings();
-					});
-			});
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.enableTimer)
+				.onChange(async (value) => {
+					this.plugin.settings.enableTimer = value;
+					await this.plugin.saveSettings();
+			}));
+			
+		this.plugin.showicons.settingsDisplay();
 	}
 }
