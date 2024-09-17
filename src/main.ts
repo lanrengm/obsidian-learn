@@ -1,19 +1,19 @@
 import { Editor, MarkdownView, Notice, Plugin, setIcon } from 'obsidian';
 import { clearInterval } from 'timers';
 
-import { MyPluginSettings, MY_SETTINGS, MySettingTab } from "./settings";
+import { SettingsPluginMain, SETTINGS_PLUGIN_MAIN, SettingTabPluginMain } from "./settings";
 import { MyModal } from "./modals";
 
-import { ShowIcons } from 'src/widgets/showicons';
+import { WidgetShowIcons } from 'src/widgets/showicons';
 
 
 type StatusBarIconButton = HTMLElement;
 
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
-	settingTab: MySettingTab;
+export default class PluginMain extends Plugin {
+	settings: SettingsPluginMain;
+	settingTab: SettingTabPluginMain;
 
-	showicons: ShowIcons;
+	showicons: WidgetShowIcons;
 
 	timerDriver: NodeJS.Timer | null = null;
 	timerCount: number = 0;
@@ -21,7 +21,7 @@ export default class MyPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.settingTab = new MySettingTab(this.app, this);
+		this.settingTab = new SettingTabPluginMain(this.app, this);
 		this.addSettingTab(this.settingTab);
 
 		// This creates an icon in the left ribbon.
@@ -102,7 +102,7 @@ export default class MyPlugin extends Plugin {
 			}
 		});
 
-		this.showicons = new ShowIcons(this);
+		this.showicons = new WidgetShowIcons(this);
 		this.showicons.onload();
 
 		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
@@ -118,7 +118,7 @@ export default class MyPlugin extends Plugin {
 	onunload() {}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, MY_SETTINGS, await this.loadData());
+		this.settings = Object.assign({}, SETTINGS_PLUGIN_MAIN, await this.loadData());
 	}
 
 	async saveSettings() {
