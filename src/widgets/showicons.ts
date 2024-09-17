@@ -1,6 +1,6 @@
 import { ItemView, Notice, setIcon, setTooltip, getIconIds, Setting, WorkspaceLeaf } from "obsidian";
 
-import MyPlugin from "main";
+import MyPlugin from "../main";
 
 
 export interface ShowIconsSettings {

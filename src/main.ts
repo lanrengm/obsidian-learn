@@ -1,8 +1,8 @@
 import { Editor, MarkdownView, Notice, Plugin, setIcon } from 'obsidian';
 import { clearInterval } from 'timers';
 
-import { MyPluginSettings, MY_SETTINGS, MySettingTab } from "./src/settings";
-import { MyModal } from "./src/modals";
+import { MyPluginSettings, MY_SETTINGS, MySettingTab } from "./settings";
+import { MyModal } from "./modals";
 
 import { ShowIcons } from 'src/widgets/showicons';
 

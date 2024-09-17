@@ -1,6 +1,6 @@
 import { App, Setting, PluginSettingTab } from "obsidian";
 
-import MyPlugin from "../main";
+import MyPlugin from "./main";
 
 import { ShowIconsSettings, SHOW_ICONS_SETTINGS } from './widgets/showicons';
 
