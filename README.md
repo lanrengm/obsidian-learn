@@ -1,4 +1,10 @@
-# Obsidian Sample Plugin
+# 懒人开发工具套件
+
+## 功能
+
+- 显示内部注册的 svg icon
+
+## Obsidian Sample Plugin
 
 This is a sample plugin for Obsidian (https://obsidian.md).
 
