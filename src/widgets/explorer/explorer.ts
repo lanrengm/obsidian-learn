@@ -109,39 +109,45 @@ class View extends ItemView {
     this.containerEl.empty();
   }
 
+  // 循环展开目录
   showFolderToEl(path: string, el: HTMLElement) {
     const { vault } = this.app;
 
     let root = vault.getFolderByPath(path);
     // 分离 folder 和 file
-    let folderList: Array<TAbstractFile> = [];
-    let fileList: Array<TAbstractFile> = [];
-    root?.children.forEach((t) => {
-      if (t instanceof TFolder) {
-        folderList.push(t);
-      } else {
-        fileList.push(t);
-      }
-    });
+    let folderList: Array<TFolder> = [];
+    let fileList: Array<TFile> = [];
+    root?.children.forEach((t) => t instanceof TFolder ? folderList.push(t) : fileList.push(t as TFile));
     folderList.sort();
     fileList.sort();
 
-    // nav-folder
+    // 处理文件夹部分 nav-folder
     folderList.forEach(t => {
       let navFolder = el.createDiv({ cls: 'tree-item nav-folder is-collapsed' });
       let navFolderTitle = navFolder.createDiv({ cls: 'tree-item-self nav-folder-title' });
-      let navFolderCollapseIndicator = navFolderTitle.createDiv({ cls: 'tree-item-icon nav-folder-collapse-indicator' });
-      setIcon(navFolderCollapseIndicator, 'myicon1');
+      let navFolderCollapseIndicator = navFolderTitle.createDiv({ 
+        cls: 'tree-item-icon collapse-icon nav-folder-collapse-indicator is-collapsed'
+      });
+      // let svgIcon = navFolderCollapseIndicator.createSvg('svg', {cls: 'svg-icon right-triangle'});
+      // setIcon(navFolderCollapseIndicator, 'myicon1');
       let navFolderTitleContent = navFolderTitle.createDiv({
         text: t.name,
         cls: 'tree-item-inner nav-folder-title-content'
       });
 
       // 点击目录的事件
-      navFolder.onClickEvent(evt => {
+      // 第一次点击是选中，第二次点击是展开子目录，第三次点击是收起子目录
+      navFolderTitle.onClickEvent(evt => {
         if (this.focusedEl === navFolderTitle) {
           // 点击已选中文件夹, 等同于双击
-          console.log(t.name);
+          if (navFolder.children.length === 1) {
+            // 展开子目录
+            let navFolderChildren = navFolder.createDiv({cls: 'tree-item-children nav-folder-children'});
+            this.showFolderToEl(t.path, navFolderChildren);
+          } else {
+            // 收起子目录
+            navFolder.children[1].remove();
+          }
         } else {
           // 点击新的文件夹
           // 取消其它文件或目录的选中
@@ -153,10 +159,10 @@ class View extends ItemView {
       });
     });
 
-    // nav-file
+    // 处理文件部分 nav-file
     fileList.forEach(t => {
       let navFile = el.createDiv({ cls: 'tree-item nav-file' });
-      let navFileTitle = navFile.createDiv({ cls: 'tree-item-self nav-file-title' });
+      let navFileTitle = navFile.createDiv({ cls: 'tree-item-self nav-file-title is-clickable tappable' });
       let navFileTitleContent = navFileTitle.createDiv({
         text: t.name,
         cls: 'tree-item-inner nav-file-title-content'
@@ -173,5 +179,13 @@ class View extends ItemView {
         this.focusedEl = navFileTitle;
       });
     })
+  }
+
+  openFolder(t: TFolder): void {
+
+  }
+
+  closeFolder(t: TFolder): void {
+
   }
 }
