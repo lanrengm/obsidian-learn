@@ -1,27 +1,62 @@
-import { Plugin, ItemView, WorkspaceLeaf, TFile, TFolder, TAbstractFile, Notice, addIcon, setIcon } from "obsidian";
+import { Setting, ItemView, WorkspaceLeaf, TFile, TFolder, TAbstractFile, Notice, addIcon, setIcon, removeIcon } from "obsidian";
+import { Widget } from '../widget';
 
 import myicon1 from './icons/myicon1.svg';
 
+const ICON_1 = 'myicon1';
 
-export default class MyPlugin extends Plugin {
+export interface Settings {
+  enableWidget: boolean;
+}
+
+export const SETTINGS: Settings = {
+  enableWidget: false,
+}
+
+export class WidgetExplorer extends Widget {
+  settings: Settings;
 
   explorerIcon: HTMLElement | null = null;
-  explorer: MyView | null = null;
+  explorer: View | null = null;
 
   icon1: HTMLElement | null = null;
 
-  async onload(): Promise<void> {
-    const { workspace } = this.app;
+  displaySettingTab(containerEl: HTMLElement): void {
+    new Setting(containerEl)
+      .setName('Zone 文件浏览器')
+      .setDesc('特殊的文件浏览器')
+      .addToggle(toggle => toggle
+        .setValue(this.settings.enableWidget)
+        .onChange(async value => {
+          this.settings.enableWidget = value;
+          await this.plugin.saveSettings();
+          if (value) {
+            this.enableWidget();
+          } else {
+            this.disableWidget();
+          }
+        }));
+  }
 
-    this.registerExplorerRibbonIcon();
+  onload() {
+    if (this.settings.enableWidget) {
+      this.enableWidget();
+    }
     // 注册 View
-    this.registerView(MY_VIEW_TYPE, (leaf) => new MyView(leaf));
-
-    this.addRibbonIcon('dice', 'new file', (e) => {
-    });
+    this.plugin.registerView(VIEW_TYPE, (leaf) => new View(leaf));
   }
 
   onunload(): void {
+    this.disableWidget();
+  }
+
+  enableWidget(): void {
+    addIcon(ICON_1, myicon1);
+    this.explorerIcon = this.plugin.addRibbonIcon('myicon1', 'open my explorer',
+      (e) => this.showExplorer());
+  }
+
+  disableWidget(): void {
     if (this.explorerIcon) {
       this.explorerIcon.remove();
       this.explorerIcon = null;
@@ -30,39 +65,34 @@ export default class MyPlugin extends Plugin {
       this.icon1.remove();
       this.icon1 = null;
     }
-  }
-
-  registerExplorerRibbonIcon() {
-    addIcon('myicon1', myicon1);
-    this.explorerIcon = this.addRibbonIcon('myicon1', 'open my explorer', (e) => this.showExplorer());
+    removeIcon(ICON_1);
   }
 
   async showExplorer() {
-    const { workspace } = this.app;
+    const { workspace } = this.plugin.app;
     // 显示 View
     let leaf: WorkspaceLeaf | null = null;
-    const leaves = workspace.getLeavesOfType(MY_VIEW_TYPE);
+    const leaves = workspace.getLeavesOfType(VIEW_TYPE);
     if (leaves.length > 0) {
       leaf = leaves[0];
+      workspace.revealLeaf(leaf!);
     } else {
       leaf = workspace.getLeftLeaf(false);
-      await leaf!.setViewState({ type: MY_VIEW_TYPE, active: true });
+      await leaf!.setViewState({ type: VIEW_TYPE, active: true });
     }
-    workspace.revealLeaf(leaf!);
   }
 }
 
+const VIEW_TYPE = "explorer-view";
 
-const MY_VIEW_TYPE = "my-explorer";
-
-class MyView extends ItemView {
+class View extends ItemView {
   navigation: boolean = false;
   // 记录当前选中的文件或文件夹
   // 实现两次点击同一个文件夹展开
   focusedEl: HTMLElement | null = null;
 
   getViewType(): string {
-    return MY_VIEW_TYPE;
+    return VIEW_TYPE;
   }
 
   getDisplayText(): string {

@@ -3,94 +3,98 @@ import { ItemView, Notice, setIcon, setTooltip, getIconIds, Setting, WorkspaceLe
 import { Widget } from "./widget";
 
 
-export class WidgetShowIcons extends Widget {
+export interface Settings {
+  enableWidget: boolean;
+}
 
-  onload() {
-    if (this.plugin.settings.settingsShowIcons.enableShowIcons) {
-      this.showIcons();
-    }
+export const SETTINGS: Settings = {
+  enableWidget: false,
+}
+
+export class WidgetShowIcons extends Widget {
+  settings: Settings;
+
+  icon1: HTMLElement | null = null;
+
+  displaySettingTab(containerEl: HTMLElement) {
+    new Setting(containerEl)
+      .setName('显示已注册 SVG 图标')
+      .setDesc('使用 setIcon() 函数注册到 Obsidain 内部的图标都可以显示。')
+      .addToggle(toggle => toggle
+        .setValue(this.settings.enableWidget)
+        .onChange(async (value) => {
+          this.settings.enableWidget = value;
+          await this.plugin.saveSettings();
+          if (value) {
+            this.enableWidget();
+          } else {
+            this.disableWidget();
+          }
+        }));
   }
 
-  showIcons() {
-    this.plugin.registerView(
-      VIEW_TYPE_SHOW_ICONS,
-      (leaf) => new ViewShowIcons(leaf)
-    );
-    this.plugin.addRibbonIcon("shapes", "Show Icons", () => {
-      this.activateView();
-    });
+  onload() {
+    if (this.settings.enableWidget) {
+      this.enableWidget();
+    }
 
+    this.plugin.registerView(VIEW_TYPE, (leaf) => new View(leaf));
+  }
+
+  onunload() {
+    this.disableWidget();
+  }
+
+  enableWidget() {
+    this.icon1 = this.plugin.addRibbonIcon("at-sign", "显示 Obsidian 内已注册的 SVG 图标", () => {
+      this.activateView();
+      console.log(getIconIds());
+    });
+  }
+
+  disableWidget() {
+    if (this.icon1) {
+      this.icon1.remove();
+      this.icon1 = null;
+    }
+    const leaves = this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE);
+    if (leaves.length > 0) {
+      leaves[0].detach();
+    }
   }
 
   async activateView() {
     const { workspace } = this.plugin.app;
     let leaf: WorkspaceLeaf | null = null;
-    const leaves = workspace.getLeavesOfType(VIEW_TYPE_SHOW_ICONS);
+    const leaves = workspace.getLeavesOfType(VIEW_TYPE);
     if (leaves.length > 0) {
       leaf = leaves[0];
+      if (workspace.getActiveViewOfType(View)) {
+        leaf.detach();
+      } else {
+        workspace.revealLeaf(leaf);
+      }
     } else {
       leaf = workspace.getLeaf('tab');
-      // workspace.getLeftLeaf
-      await leaf!.setViewState({ type: VIEW_TYPE_SHOW_ICONS, active: true });
+      await leaf.setViewState({ type: VIEW_TYPE, active: true });
     }
-    workspace.revealLeaf(leaf!);
-  }
-
-  settingsDisplay() {
-    const { containerEl } = this.plugin.settingTab;
-
-    new Setting(containerEl)
-      .setName('Enable show icons.')
-      .setDesc('You can see builtin icons.')
-      .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.settingsShowIcons.enableShowIcons)
-        .onChange(async (value) => {
-          this.plugin.settings.settingsShowIcons.enableShowIcons = value;
-          await this.plugin.saveSettings();
-          if (value) {
-            this.showIcons();
-          }
-        }));
   }
 }
 
-export interface SettingsShowIcons {
-  enableShowIcons: boolean;
-}
+const VIEW_TYPE = "builtin-icons-view";
 
-export const SETTINGS_SHOW_ICONS: SettingsShowIcons = {
-  enableShowIcons: false,
-}
-
-export const VIEW_TYPE_SHOW_ICONS = "my-icons-view";
-
-export class ViewShowIcons extends ItemView {
+class View extends ItemView {
   getViewType() {
-    return VIEW_TYPE_SHOW_ICONS;
+    return VIEW_TYPE;
   }
 
   getDisplayText(): string {
     return "Icons";
   }
 
-  renderIconTable(ids: string[]) {
-    const { contentEl } = this;
-    const tableEl = contentEl.createDiv("icon-table");
-    ids.forEach((id) => {
-      let iconEl = tableEl.createDiv("icon-item");
-      setIcon(iconEl, id);
-      setTooltip(iconEl, id, { delay: 0 });
-      iconEl.onclick = () => {
-        navigator.clipboard.writeText(id);
-        new Notice("Copied to clipboard.");
-      }
-    });
-
-  }
-
   async onOpen() {
     const { contentEl } = this;
-    contentEl.createEl("h1", { text: 'Icons' });
+    contentEl.createEl("h1", { text: '已注册 SVG 图标' });
     contentEl.createEl("style", {
       attr: { scope: "" }, text: `
 			.icon-table {
@@ -124,5 +128,19 @@ export class ViewShowIcons extends ItemView {
 
   async onClose() {
     this.containerEl.empty();
+  }
+
+  renderIconTable(ids: string[]) {
+    const { contentEl } = this;
+    const tableEl = contentEl.createDiv("icon-table");
+    ids.forEach((id) => {
+      let iconEl = tableEl.createDiv("icon-item");
+      setIcon(iconEl, id);
+      setTooltip(iconEl, id, { delay: 0 });
+      iconEl.onclick = () => {
+        navigator.clipboard.writeText(id);
+        new Notice("Copied to clipboard.");
+      }
+    });
   }
 }

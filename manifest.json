@@ -1,9 +1,9 @@
 {
-  "id": "plugin-1",
-  "name": "插件-1",
+  "id": "lanren-dev-tools",
+  "name": "懒人开发工具",
   "version": "0.0.4",
   "minAppVersion": "1.6.7",
-  "description": "懒人插件",
+  "description": "Obsidian 开发工具",
   "author": "Lanren",
   "authorUrl": "https://github.com/lanrengm",
   "isDesktopOnly": false
