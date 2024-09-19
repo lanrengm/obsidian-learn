@@ -102,7 +102,9 @@ class View extends ItemView {
   async onOpen(): Promise<void> {
     const { contentEl } = this;
 
-    this.showFolderToEl('/', contentEl);
+    contentEl.addClasses(['nav-files-container', 'node-insert-event', 'show-unsupported']);
+    let div = contentEl.createDiv();
+    this.showFolderToEl('/', div);
   }
 
   async onClose(): Promise<void> {
@@ -123,60 +125,99 @@ class View extends ItemView {
 
     // 处理文件夹部分 nav-folder
     folderList.forEach(t => {
-      let navFolder = el.createDiv({ cls: 'tree-item nav-folder is-collapsed' });
-      let navFolderTitle = navFolder.createDiv({ cls: 'tree-item-self nav-folder-title' });
-      let navFolderCollapseIndicator = navFolderTitle.createDiv({ 
-        cls: 'tree-item-icon collapse-icon nav-folder-collapse-indicator is-collapsed'
+      let treeItem = el.createDiv({
+        cls: ['tree-item', 'nav-folder', 'is-collapsed']
       });
-      // let svgIcon = navFolderCollapseIndicator.createSvg('svg', {cls: 'svg-icon right-triangle'});
-      // setIcon(navFolderCollapseIndicator, 'myicon1');
-      let navFolderTitleContent = navFolderTitle.createDiv({
+      let treeItemSelf = treeItem.createDiv({
+        cls: [
+          'tree-item-self', 'is-clickable',
+          'nav-folder-title', 'mod-collapsible'
+        ]
+      });
+      let treeItemIcon = treeItemSelf.createDiv({ 
+        cls: ['tree-item-icon', 'nav-folder-collapse-indicator', 'collapse-icon', 'is-collapsed']
+      });
+      // 模仿文件管理器部分的 【展开/收起】 图标
+      // '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon right-triangle"><path d="M3 8L12 17L21 8"></path></svg>'
+      let svgIcon = treeItemIcon.createSvg('svg', {
+        attr: {
+          'xmlns': 'http://www.w3.org/2000/svg',
+          'width': '24',
+          'height': '24',
+          'viewBox': '0 0 24 24',
+          'fill': 'none',
+          'stroke': 'currentColor',
+          'stroke-width': '2',
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round',
+          'class': 'svg-icon right-triangle'
+        }
+      })
+      svgIcon.createSvg('path', {
+        attr: {
+          'd': 'M3 8L12 17L21 8'
+        }
+      })
+      let treeItemInner = treeItemSelf.createDiv({
         text: t.name,
-        cls: 'tree-item-inner nav-folder-title-content'
+        cls: ['tree-item-inner', 'nav-folder-title-content']
       });
 
       // 点击目录的事件
       // 第一次点击是选中，第二次点击是展开子目录，第三次点击是收起子目录
-      navFolderTitle.onClickEvent(evt => {
-        if (this.focusedEl === navFolderTitle) {
+      treeItemSelf.onClickEvent(evt => {
+        if (this.focusedEl === treeItemSelf) {
           // 点击已选中文件夹, 等同于双击
-          if (navFolder.children.length === 1) {
+          if (treeItem.children.length === 1) {
             // 展开子目录
-            let navFolderChildren = navFolder.createDiv({cls: 'tree-item-children nav-folder-children'});
+            treeItem.removeClass('is-collapsed');
+            treeItemIcon.removeClass('is-collapsed');
+            let navFolderChildren = treeItem.createDiv({
+              cls: ['tree-item-children', 'nav-folder-children']
+            });
             this.showFolderToEl(t.path, navFolderChildren);
           } else {
             // 收起子目录
-            navFolder.children[1].remove();
+            treeItem.addClass('is-collapsed');
+            treeItemIcon.addClass('is-collapsed');
+            treeItem.children[1].remove();
           }
         } else {
           // 点击新的文件夹
           // 取消其它文件或目录的选中
           this.focusedEl?.removeClasses(['is-active', 'has-focus']);
           // 选中当前目录
-          navFolderTitle.addClasses(['is-active', 'has-focus']);
-          this.focusedEl = navFolderTitle;
+          treeItemSelf.addClasses(['is-active', 'has-focus']);
+          this.focusedEl = treeItemSelf;
         }
       });
     });
 
     // 处理文件部分 nav-file
     fileList.forEach(t => {
-      let navFile = el.createDiv({ cls: 'tree-item nav-file' });
-      let navFileTitle = navFile.createDiv({ cls: 'tree-item-self nav-file-title is-clickable tappable' });
-      let navFileTitleContent = navFileTitle.createDiv({
+      let treeItem = el.createDiv({
+        cls: ['tree-item', 'nav-file']
+      });
+      let treeItemSelf = treeItem.createDiv({
+        cls: [
+          'tree-item-self', 'is-clickable', 
+          'nav-file-title', 'tappable'
+        ]
+      });
+      let treeItemInner = treeItemSelf.createDiv({
         text: t.name,
-        cls: 'tree-item-inner nav-file-title-content'
+        cls: ['tree-item-inner', 'nav-file-title-content']
       });
 
       // 点击文件的事件
-      navFile.onClickEvent(evt => {
+      treeItem.onClickEvent(evt => {
         // is-active 是外边框变化，可以用键盘方向键控制，作用是光标指示器。
         // has-focus 是背景变化，鼠标单击选中，或方向键切换is-active后按回车选中，作用是指示当前正在编辑的文件。
         // 取消其它文件或目录的选中
         this.focusedEl?.removeClasses(['is-active', 'has-focus']);
         // 选中当前文件
-        navFileTitle.addClasses(['is-active', 'has-focus']);
-        this.focusedEl = navFileTitle;
+        treeItemSelf.addClasses(['is-active', 'has-focus']);
+        this.focusedEl = treeItemSelf;
       });
     })
   }
