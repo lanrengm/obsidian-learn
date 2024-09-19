@@ -48,7 +48,6 @@ export class WidgetShowIcons extends Widget {
   enableWidget() {
     this.icon1 = this.plugin.addRibbonIcon("at-sign", "显示 Obsidian 内已注册的 SVG 图标", () => {
       this.activateView();
-      console.log(getIconIds());
     });
   }
 
