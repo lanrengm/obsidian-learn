@@ -86,6 +86,8 @@ const VIEW_TYPE = "zone-explorer";
 class ZoneView extends View {
   icon: string = 'list-tree';
   navigation: boolean = false;
+  // 光标框选的文件或文件夹
+  activedItem: HTMLElement | null = null;
   // 记录当前选中的文件或文件夹，实现文件夹展开与折叠
   focusedItem: HTMLElement | null = null;
   // 记录 padding-left
@@ -101,7 +103,10 @@ class ZoneView extends View {
 
   async onOpen(): Promise<void> {
     let navFilesContainer = this.containerEl.createDiv({
-      cls: ['nav-files-container', 'node-insert-event', 'show-unsupported']
+      cls: ['nav-files-container', 'node-insert-event', 'show-unsupported'],
+      attr: {
+        'tabindex': '-1', // 使 div 能够监听键盘事件
+      }
     })
     let div = navFilesContainer.createDiv();
     // 获取左边距
@@ -111,6 +116,11 @@ class ZoneView extends View {
     this.paddingLeft = paddingDiv.getCssPropertyValue('padding-left');
     // 显示目录树
     this.showFolderToEl('/', div, 0);
+    // 方向键监听
+    navFilesContainer.addEventListener('keydown', (evt) => {
+      console.log(evt)
+
+    });
   }
 
   async onClose(): Promise<void> {
@@ -129,73 +139,88 @@ class ZoneView extends View {
     fileList.sort();
 
     // 渲染文件夹部分 nav-folder
-    folderList.forEach(t => new ZoneFolder(this, t, el, deep));
+    folderList.forEach(t => new ZoneFolder(this, el, deep, t));
     // 渲染文件部分 nav-file
-    fileList.forEach(t => new ZoneFile(this, t, el, deep));
+    fileList.forEach(t => new ZoneFile(this, el, deep, t));
   }
 }
 
-class ZoneFolder {
+abstract class ZoneAbstractFile {
   view: ZoneView;
-  t: TFolder;
+  parent: HTMLElement;
   deep: number; // 当前文件夹的深度，用来计算左侧padding
+  t: TAbstractFile;
+
   treeItem: HTMLElement;
   treeItemSelf: HTMLElement;
-  treeItemIcon: HTMLElement;
-  treeItemChildren: HTMLElement | null = null;
 
-  constructor(view: ZoneView, t: TFolder, parent: HTMLElement, deep: number) {
+  constructor (view: ZoneView, parent: HTMLElement, deep: number, t:TAbstractFile) {
     this.view = view;
-    this.t = t;
+    this.parent = parent;
     this.deep = deep;
-    this.treeItem = parent.createDiv({
-      cls: ['tree-item', 'nav-folder', 'is-collapsed', 
-        'mod-root', // 此 class 用来兼容 ITS Theme
-      ]
-    });
+    this.t = t;
+
+    this.treeItem = this.parent.createDiv({cls: 'tree-item'})
     this.treeItemSelf = this.treeItem.createDiv({
-      cls: [
-        'tree-item-self', 'is-clickable',
-        'nav-folder-title', 'mod-collapsible'
-      ],
+      cls: ['tree-item-self', 'is-clickable'],
       attr: {
         'style': `margin-inline-start: -${this.deep * 17}px !important; padding-inline-start: calc( ${this.view.paddingLeft} + ${this.deep * 17}px) !important;`
       }
     });
+
+    this.init();
+    this.registerMouseClick();
+    this.registerKeyPress();
+  }
+  
+  // is-active 是外边框变化，可以用键盘方向键控制，作用是光标指示器。
+  activeSelf() {
+    this.view.activedItem?.removeClass('is-active');
+    this.treeItemSelf.addClass('is-active');
+    this.view.activedItem = this.treeItemSelf;
+  }
+
+  // has-focus 是背景变化，鼠标单击选中，或方向键切换is-active后按回车选中，作用是指示当前正在编辑的文件。
+  focusSelf() {
+    this.view.focusedItem?.removeClass('has-focus');
+    this.treeItemSelf.addClass('has-focus');
+    this.view.focusedItem = this.treeItemSelf;
+  }
+
+  abstract init(): void;
+
+  abstract registerMouseClick(): void;
+
+  abstract registerKeyPress(): void;
+}
+
+class ZoneFolder extends ZoneAbstractFile {
+  treeItemIcon: HTMLElement;
+  treeItemChildren: HTMLElement | null = null;
+
+  init() {
+    this.treeItem.addClasses(['nav-folder', 'is-collapsed']);
+    this.treeItemSelf.addClasses(['nav-folder-title', 'mod-collapsible']);
     this.createIcon();
     this.createText();
+  }
+
+  registerMouseClick(): void {
     // 点击目录的事件
     // 第一次点击当前目录是选中，第二次点击是展开子目录，第三次点击是收起子目录
     this.treeItemSelf.onClickEvent(evt => {
       if (this.view.focusedItem !== this.treeItemSelf) {
-        // 第一次点击当前文件夹, 取消其它文件或目录的选中
-        this.view.focusedItem?.removeClasses(['is-active', 'has-focus']);
-        this.treeItemSelf.addClasses(['is-active', 'has-focus']);
-        this.view.focusedItem = this.treeItemSelf;
+        this.activeSelf();
+        this.focusSelf();
+      } else if(!this.treeItemChildren) {
+        this.expandChildren();
       } else {
-        // 再次点击当前文件夹，展开或折叠目录
-        !this.treeItemChildren ? this.expand() : this.collapse();
+        this.collapseChildren();
       }
-    })
-  }
-  
-  // 展开子目录
-  expand() {
-    this.treeItem.removeClass('is-collapsed')
-    this.treeItemIcon.removeClass('is-collapsed');
-    this.treeItemChildren = this.treeItem.createDiv({
-      cls: ['tree-item-children', 'nav-folder-children']
     });
-    this.view.showFolderToEl(this.t.path, this.treeItemChildren, this.deep + 1);
   }
 
-  // 收起子目录
-  collapse() {
-    this.treeItem.addClass('is-collapsed');
-    this.treeItemIcon.addClass('is-collapsed');
-    this.treeItemChildren?.remove();
-    this.treeItemChildren = null;
-  }
+  registerKeyPress(): void {}
 
   private createIcon() {
     this.treeItemIcon = this.treeItemSelf.createDiv({ 
@@ -226,62 +251,72 @@ class ZoneFolder {
       cls: ['tree-item-inner', 'nav-folder-title-content']
     });
   }
+
+  // 展开子目录
+  expandChildren() {
+    this.treeItem.removeClass('is-collapsed')
+    this.treeItemIcon.removeClass('is-collapsed');
+    this.treeItemChildren = this.treeItem.createDiv({
+      cls: ['tree-item-children', 'nav-folder-children']
+    });
+    this.view.showFolderToEl(this.t.path, this.treeItemChildren, this.deep + 1);
+  }
+
+  // 收起子目录
+  collapseChildren() {
+    this.treeItem.addClass('is-collapsed');
+    this.treeItemIcon.addClass('is-collapsed');
+    this.treeItemChildren?.remove();
+    this.treeItemChildren = null;
+  }
+
 }
 
-class ZoneFile {
-  view: ZoneView;
-  t: TFile;
-  deep: number;
-  
-  constructor(view: ZoneView, t: TFile, parent: HTMLElement, deep: number) {
-    this.view = view;
-    this.t = t;
-    this.deep = deep;
+class ZoneFile extends ZoneAbstractFile {
+  tName: string;
+  tExt: string;
+
+  init(): void {
+    this.treeItem.addClass('nav-file');
+    this.treeItemSelf.addClasses(['nav-file-title', 'tappable']);
 
     // 文件后缀名处理
     let re = /(.*)\.([A-Za-z]*)$/;
-    let tName: string;
-    let tExt: string;
-    let res: string[] | null = re.exec(t.name);
+    let res: string[] | null = re.exec(this.t.name);
     if (res) {
-      tName = res[1];
-      tExt = res[2] === 'md'? '' : res[2];
+      this.tName = res[1];
+      this.tExt = res[2] === 'md'? '' : res[2];
     } else {
-      tName = t.name;
-      tExt = 'nul';
+      this.tName = this.t.name;
+      this.tExt = 'nul';
     }
 
-    let treeItem = parent.createDiv({
-      cls: ['tree-item', 'nav-file', 'mod-root']
+    this.createText();
+    this.createTag();
+  }
+
+  registerMouseClick(): void {
+    this.treeItem.onClickEvent(evt => {
+      this.activeSelf();
+      this.focusSelf();
     });
-    let treeItemSelf = treeItem.createDiv({
-      cls: [
-        'tree-item-self', 'is-clickable', 
-        'nav-file-title', 'tappable'
-      ],
-      attr: {
-        'style': `margin-inline-start: -${this.deep * 17}px !important; padding-inline-start: calc(${this.view.paddingLeft} + ${this.deep * 17}px) !important;`
-      }
-    });
-    let treeItemInner = treeItemSelf.createDiv({
-      text: tName,
+  }
+
+  registerKeyPress(): void {
+    
+  }
+
+  createText() {
+    this.treeItemSelf.createDiv({
+      text: this.tName,
       cls: ['tree-item-inner', 'nav-file-title-content']
     });
-    let navFileTag = treeItemSelf.createDiv({
-      text: tExt,
+  }
+
+  createTag() {
+    this.treeItemSelf.createDiv({
+      text: this.tExt,
       cls: 'nav-file-tag'
     });
-
-    // 点击文件的事件
-    treeItem.onClickEvent(evt => {
-      // is-active 是外边框变化，可以用键盘方向键控制，作用是光标指示器。
-      // has-focus 是背景变化，鼠标单击选中，或方向键切换is-active后按回车选中，作用是指示当前正在编辑的文件。
-      // 取消其它文件或目录的选中
-      this.view.focusedItem?.removeClasses(['is-active', 'has-focus']);
-      // 选中当前文件
-      treeItemSelf.addClasses(['is-active', 'has-focus']);
-      this.view.focusedItem = treeItemSelf;
-    });
-
   }
 }
