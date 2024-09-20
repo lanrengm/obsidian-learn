@@ -52,8 +52,10 @@ export default class Main extends Plugin {
       timer: new timer.WidgetTimer(this, this.settings.timer),
       explorer: new explorer.WidgetExplorer(this, this.settings.explorer),
     }
-    Object.keys(this.widgets).forEach(key => this.widgets[key].onload());
-
+    // 等到布局结束再启动插件，不然 Leaf 创建会出问题
+    this.app.workspace.onLayoutReady(() => {
+      Object.keys(this.widgets).forEach(key => this.widgets[key].onload());
+    });
   }
 
   onunload() {

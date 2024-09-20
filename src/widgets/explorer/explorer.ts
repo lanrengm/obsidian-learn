@@ -1,9 +1,6 @@
 import { Setting, View, ItemView, WorkspaceLeaf, TFile, TFolder, TAbstractFile, Notice, addIcon, setIcon, removeIcon } from "obsidian";
 import { Widget } from '../widget';
 
-import myicon1 from './icons/myicon1.svg';
-
-const ICON_1 = 'myicon1';
 
 export interface Settings {
   enableWidget: boolean;
@@ -17,9 +14,6 @@ export class WidgetExplorer extends Widget {
   settings: Settings;
 
   explorerIcon: HTMLElement | null = null;
-  explorer: ZoneView | null = null;
-
-  icon1: HTMLElement | null = null;
 
   displaySettingTab(containerEl: HTMLElement): void {
     new Setting(containerEl)
@@ -38,7 +32,7 @@ export class WidgetExplorer extends Widget {
         }));
   }
 
-  onload() {
+  async onload() {
     if (this.settings.enableWidget) {
       this.enableWidget();
     }
@@ -51,21 +45,17 @@ export class WidgetExplorer extends Widget {
   }
 
   enableWidget(): void {
-    addIcon(ICON_1, myicon1);
-    this.explorerIcon = this.plugin.addRibbonIcon('folder', 'Open zone explorer.',
-      (e) => this.showExplorer());
+    this.plugin.addRibbonIcon('list-tree', 'Restart zone explorer.', e => {
+      this.hideExplorer();
+      this.showExplorer();
+    });
+    this.showExplorer();
   }
 
   disableWidget(): void {
-    if (this.explorerIcon) {
-      this.explorerIcon.remove();
-      this.explorerIcon = null;
-    }
-    if (this.icon1) {
-      this.icon1.remove();
-      this.icon1 = null;
-    }
-    removeIcon(ICON_1);
+    this.explorerIcon?.remove();
+    this.explorerIcon = null;
+    this.hideExplorer();
   }
 
   async showExplorer() {
@@ -78,7 +68,15 @@ export class WidgetExplorer extends Widget {
       workspace.revealLeaf(leaf!);
     } else {
       leaf = workspace.getLeftLeaf(false);
-      await leaf!.setViewState({ type: VIEW_TYPE, active: true });
+      await leaf?.setViewState({ type: VIEW_TYPE, active: true });
+    }
+  }
+
+  hideExplorer() {
+    const leaves = this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE);
+    if (leaves.length > 0) {
+      leaves[0].view.containerEl.remove();
+      leaves[0].detach();
     }
   }
 }
@@ -86,10 +84,12 @@ export class WidgetExplorer extends Widget {
 const VIEW_TYPE = "zone-explorer";
 
 class ZoneView extends View {
-  icon: string = 'folder';
+  icon: string = 'list-tree';
   navigation: boolean = false;
   // 记录当前选中的文件或文件夹，实现文件夹展开与折叠
   focusedItem: HTMLElement | null = null;
+  // 记录 padding-left
+  paddingLeft: string = '24px';
 
   getViewType(): string {
     return VIEW_TYPE;
@@ -104,7 +104,13 @@ class ZoneView extends View {
       cls: ['nav-files-container', 'node-insert-event', 'show-unsupported']
     })
     let div = navFilesContainer.createDiv();
-    this.showFolderToEl('/', div);
+    // 获取左边距
+    let paddingDiv = div.createDiv({attr: {
+      'style': 'padding: var(--nav-item-padding);'
+    }});
+    this.paddingLeft = paddingDiv.getCssPropertyValue('padding-left');
+    // 显示目录树
+    this.showFolderToEl('/', div, 0);
   }
 
   async onClose(): Promise<void> {
@@ -112,7 +118,7 @@ class ZoneView extends View {
   }
 
   // 循环展开目录
-  showFolderToEl(path: string, el: HTMLElement) {
+  showFolderToEl(path: string, el: HTMLElement, deep: number) {
     let root = this.app.vault.getFolderByPath(path);
 
     // 分离 folder 和 file
@@ -123,31 +129,38 @@ class ZoneView extends View {
     fileList.sort();
 
     // 渲染文件夹部分 nav-folder
-    folderList.forEach(t => new ZoneFolder(this, t, el));
+    folderList.forEach(t => new ZoneFolder(this, t, el, deep));
     // 渲染文件部分 nav-file
-    fileList.forEach(t => new ZoneFile(this, t, el));
+    fileList.forEach(t => new ZoneFile(this, t, el, deep));
   }
 }
 
 class ZoneFolder {
   view: ZoneView;
   t: TFolder;
+  deep: number; // 当前文件夹的深度，用来计算左侧padding
   treeItem: HTMLElement;
   treeItemSelf: HTMLElement;
   treeItemIcon: HTMLElement;
   treeItemChildren: HTMLElement | null = null;
 
-  constructor(view: ZoneView, t: TFolder, parent: HTMLElement) {
+  constructor(view: ZoneView, t: TFolder, parent: HTMLElement, deep: number) {
     this.view = view;
     this.t = t;
+    this.deep = deep;
     this.treeItem = parent.createDiv({
-      cls: ['tree-item', 'nav-folder', 'is-collapsed']
+      cls: ['tree-item', 'nav-folder', 'is-collapsed', 
+        'mod-root', // 此 class 用来兼容 ITS Theme
+      ]
     });
     this.treeItemSelf = this.treeItem.createDiv({
       cls: [
         'tree-item-self', 'is-clickable',
         'nav-folder-title', 'mod-collapsible'
-      ]
+      ],
+      attr: {
+        'style': `margin-inline-start: -${this.deep * 17}px !important; padding-inline-start: calc( ${this.view.paddingLeft} + ${this.deep * 17}px) !important;`
+      }
     });
     this.createIcon();
     this.createText();
@@ -173,7 +186,7 @@ class ZoneFolder {
     this.treeItemChildren = this.treeItem.createDiv({
       cls: ['tree-item-children', 'nav-folder-children']
     });
-    this.view.showFolderToEl(this.t.path, this.treeItemChildren);
+    this.view.showFolderToEl(this.t.path, this.treeItemChildren, this.deep + 1);
   }
 
   // 收起子目录
@@ -218,10 +231,12 @@ class ZoneFolder {
 class ZoneFile {
   view: ZoneView;
   t: TFile;
+  deep: number;
   
-  constructor(view: ZoneView, t: TFile, parent: HTMLElement) {
+  constructor(view: ZoneView, t: TFile, parent: HTMLElement, deep: number) {
     this.view = view;
     this.t = t;
+    this.deep = deep;
 
     // 文件后缀名处理
     let re = /(.*)\.([A-Za-z]*)$/;
@@ -237,13 +252,16 @@ class ZoneFile {
     }
 
     let treeItem = parent.createDiv({
-      cls: ['tree-item', 'nav-file']
+      cls: ['tree-item', 'nav-file', 'mod-root']
     });
     let treeItemSelf = treeItem.createDiv({
       cls: [
         'tree-item-self', 'is-clickable', 
         'nav-file-title', 'tappable'
-      ]
+      ],
+      attr: {
+        'style': `margin-inline-start: -${this.deep * 17}px !important; padding-inline-start: calc(${this.view.paddingLeft} + ${this.deep * 17}px) !important;`
+      }
     });
     let treeItemInner = treeItemSelf.createDiv({
       text: tName,
