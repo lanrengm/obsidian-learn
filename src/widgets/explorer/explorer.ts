@@ -86,10 +86,11 @@ const VIEW_TYPE = "zone-explorer";
 class ZoneView extends View {
   icon: string = 'list-tree';
   navigation: boolean = false;
-  // 光标框选的文件或文件夹
-  activedItem: HTMLElement | null = null;
-  // 记录当前选中的文件或文件夹，实现文件夹展开与折叠
+  navFilesContainer: HTMLElement;
+  // 光标框预选的文件或文件夹
   focusedItem: HTMLElement | null = null;
+  // 记录当前选中的文件或文件夹，实现文件夹展开与折叠
+  activedItem: HTMLElement | null = null;
   // 记录 padding-left
   paddingLeft: string = '24px';
 
@@ -102,13 +103,13 @@ class ZoneView extends View {
   }
 
   async onOpen(): Promise<void> {
-    let navFilesContainer = this.containerEl.createDiv({
+    this.navFilesContainer = this.containerEl.createDiv({
       cls: ['nav-files-container', 'node-insert-event', 'show-unsupported'],
       attr: {
         'tabindex': '-1', // 使 div 能够监听键盘事件
       }
     })
-    let div = navFilesContainer.createDiv();
+    let div = this.navFilesContainer.createDiv();
     // 获取左边距
     let paddingDiv = div.createDiv({attr: {
       'style': 'padding: var(--nav-item-padding);'
@@ -117,9 +118,21 @@ class ZoneView extends View {
     // 显示目录树
     this.showFolderToEl('/', div, 0);
     // 方向键监听
-    navFilesContainer.addEventListener('keydown', (evt) => {
+    this.navFilesContainer.addEventListener('keydown', (evt) => {
       console.log(evt)
-
+      if (evt.key === 'ArrowDown') {
+        if (!this.focusedItem) {
+          let els = this.navFilesContainer.getElementsByClassName('tree-item-self');
+          if (els.length > 0) {
+            let treeItem;
+            this.focusedItem = els[0] as HTMLElement;
+            console.log(this.focusedItem);
+            this.focusedItem.addClass('has-focus');
+          }
+        } else {
+          console.log(this.focusedItem.nextSibling);
+        }
+      }
     });
   }
 
@@ -173,18 +186,19 @@ abstract class ZoneAbstractFile {
     this.registerKeyPress();
   }
   
-  // is-active 是外边框变化，可以用键盘方向键控制，作用是光标指示器。
-  activeSelf() {
+  // has-focus 是外边框变化，可以用键盘方向键控制，作用是光标指示器。
+  focusSelf() {
     this.view.activedItem?.removeClass('is-active');
     this.treeItemSelf.addClass('is-active');
     this.view.activedItem = this.treeItemSelf;
   }
 
-  // has-focus 是背景变化，鼠标单击选中，或方向键切换is-active后按回车选中，作用是指示当前正在编辑的文件。
-  focusSelf() {
+  // is-active 是背景变化，鼠标单击选中，或方向键切换is-active后按回车选中，作用是指示当前正在编辑的文件。
+  activeSelf() {
     this.view.focusedItem?.removeClass('has-focus');
     this.treeItemSelf.addClass('has-focus');
     this.view.focusedItem = this.treeItemSelf;
+    console.log(this.view.activedItem);
   }
 
   abstract init(): void;
@@ -210,8 +224,8 @@ class ZoneFolder extends ZoneAbstractFile {
     // 第一次点击当前目录是选中，第二次点击是展开子目录，第三次点击是收起子目录
     this.treeItemSelf.onClickEvent(evt => {
       if (this.view.focusedItem !== this.treeItemSelf) {
-        this.activeSelf();
         this.focusSelf();
+        this.activeSelf();
       } else if(!this.treeItemChildren) {
         this.expandChildren();
       } else {
@@ -220,7 +234,9 @@ class ZoneFolder extends ZoneAbstractFile {
     });
   }
 
-  registerKeyPress(): void {}
+  registerKeyPress(): void {
+    this.view.containerEl
+  }
 
   private createIcon() {
     this.treeItemIcon = this.treeItemSelf.createDiv({ 
