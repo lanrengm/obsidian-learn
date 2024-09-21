@@ -115,8 +115,16 @@ class ZoneView extends View {
       'style': 'padding: var(--nav-item-padding);'
     }});
     this.paddingLeft = paddingDiv.getCssPropertyValue('padding-left');
+    ZoneNode.view = this;
     // 显示目录树
-    this.showFolderToEl('/', div, 0);
+    // this.showFolderToEl('/', div, 0);
+    let rootT = this.app.vault.getFolderByPath('/');
+    if (rootT) {
+      let rootZoneNode = new ZoneNode(rootT, 0);
+      div.appendChild(rootZoneNode.treeItem);
+    }
+
+
     // 方向键监听
     this.navFilesContainer.addEventListener('keydown', (evt) => {
       console.log(evt)
@@ -158,7 +166,9 @@ class ZoneView extends View {
   }
 }
 
-abstract class ZoneNode {
+class ZoneNode {
+  // 视图
+  static view: ZoneView;
   // 扁平化的树
   private static _list: ZoneNode[];
   private static _index: number | null = null;
@@ -178,8 +188,13 @@ abstract class ZoneNode {
     this.t = t;
     this.depth = depth;
 
-    this.treeItem = createDiv();
-    this.treeItemSelf = this.treeItem.createDiv();
+    this.treeItem = createDiv({cls: 'tree-item'});
+    this.treeItemSelf = this.treeItem.createDiv({
+      cls: ['tree-item-self', 'is-clickable'],
+      attr: {
+        'style': `margin-inline-start: -${this.depth * 17}px !important; padding-inline-start: calc( ${ZoneNode.view.paddingLeft} + ${this.depth * 17}px) !important;`
+      }
+    });
   }
 
   open() {}
@@ -221,7 +236,7 @@ abstract class ZoneAbstractFile {
     this.deep = deep;
     this.t = t;
 
-    this.treeItem = this.parent.createDiv({cls: 'tree-item'})
+    this.treeItem = this.parent.createDiv({cls: 'tree-item'});
     this.treeItemSelf = this.treeItem.createDiv({
       cls: ['tree-item-self', 'is-clickable'],
       attr: {
