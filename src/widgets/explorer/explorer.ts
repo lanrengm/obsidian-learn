@@ -158,6 +158,54 @@ class ZoneView extends View {
   }
 }
 
+abstract class ZoneNode {
+  // 扁平化的树
+  private static _list: ZoneNode[];
+  private static _index: number | null = null;
+  // 根节点
+  private static _root: ZoneNode | null = null;
+
+  // 节点值
+  treeItem: HTMLElement;
+  treeItemSelf: HTMLElement;
+  treeItemChildren: HTMLElement | null = null;
+  t: TFolder | TFile;
+  depth: number; // 样式渲染需要知道节点的深度
+  // 子节点
+  children: ZoneNode[];
+
+  constructor(t: TFolder, depth: number) {
+    this.t = t;
+    this.depth = depth;
+
+    this.treeItem = createDiv();
+    this.treeItemSelf = this.treeItem.createDiv();
+  }
+
+  open() {}
+
+  close() {}
+
+  up() {}
+
+  down() {}
+
+  // 设置为根节点
+  setToRoot() {
+    ZoneNode._root = this;
+  }
+
+  createFolderItem() {}
+
+  createFileItem() {}
+
+  // 前序遍历 N 叉树
+  preOrderTraversal(result: ZoneNode[]): void {
+    result.push(this);
+    this.children.forEach(e => e.preOrderTraversal(result));
+  }
+}
+
 abstract class ZoneAbstractFile {
   view: ZoneView;
   parent: HTMLElement;
