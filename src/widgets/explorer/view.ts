@@ -40,11 +40,12 @@ export class ZoneView extends View {
     ZoneNode.view = this;
     // 显示目录树
     // this.showFolderToEl('/', div, 0);
-    let rootT = this.app.vault.getFolderByPath('/');
-    if (rootT) {
-      let rootZoneNode = new ZoneNode(rootT, 0);
-      div.appendChild(rootZoneNode.treeItem);
-    }
+    // let rootT = this.app.vault.getFolderByPath('/');
+    // if (rootT) {
+    //   let rootZoneNode = new ZoneNode(rootT, 0);
+    //   div.appendChild(rootZoneNode.treeItem);
+    // }
+    ZoneNode.renderTree('/', div);
 
     // 方向键监听
     this.navFilesContainer.addEventListener('keydown', (evt) => {

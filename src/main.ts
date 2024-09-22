@@ -4,7 +4,7 @@ import { Widget } from './widgets/widget';
 import * as showicons from './widgets/showicons';
 import * as test from './widgets/test';
 import * as timer from './widgets/timer';
-import * as explorer from './widgets/explorer/explorer';
+import * as explorer from './widgets/explorer/main';
 import * as exp from 'constants';
 
 
