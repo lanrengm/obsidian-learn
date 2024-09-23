@@ -38,29 +38,27 @@ export class ZoneView extends View {
     }});
     this.paddingLeft = paddingDiv.getCssPropertyValue('padding-left');
     ZoneNode.view = this;
-    // 显示目录树
-    // this.showFolderToEl('/', div, 0);
-    // let rootT = this.app.vault.getFolderByPath('/');
-    // if (rootT) {
-    //   let rootZoneNode = new ZoneNode(rootT, 0);
-    //   div.appendChild(rootZoneNode.treeItem);
-    // }
-    ZoneNode.renderTree('/', div);
+    ZoneNode.renderTree('/', div, 0);
 
     // 方向键监听
     this.navFilesContainer.addEventListener('keydown', (evt) => {
-      console.log(evt)
-      if (evt.key === 'ArrowDown') {
-        if (!this.focusedItem) {
-          let els = this.navFilesContainer.getElementsByClassName('tree-item-self');
-          if (els.length > 0) {
-            let treeItem;
-            this.focusedItem = els[0] as HTMLElement;
-            console.log(this.focusedItem);
-            this.focusedItem.addClass('has-focus');
-          }
-        } else {
-          console.log(this.focusedItem.nextSibling);
+      console.log(evt.key);
+      switch (evt.key) {
+        case 'ArrowDown': {
+          ZoneNode.downExplorerCursor();
+          break;
+        }
+        case 'ArrowUp': {
+          ZoneNode.upExplorerCursor();
+          break;
+        }
+        case 'ArrowRight': {
+          ZoneNode.expandCurrentFolder();
+          break;
+        }
+        case 'ArrowLeft': {
+          ZoneNode.collapseExplorerFolder();
+          break;
         }
       }
     });

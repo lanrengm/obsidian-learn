@@ -115,7 +115,7 @@ export class ZoneFolder extends ZoneAbstractFile {
 
   // 展开子目录
   expandChildren() {
-    this.treeItem.removeClass('is-collapsed')
+    this.treeItem.removeClass('is-collapsed');
     this.treeItemIcon.removeClass('is-collapsed');
     this.treeItemChildren = this.treeItem.createDiv({
       cls: ['tree-item-children', 'nav-folder-children']

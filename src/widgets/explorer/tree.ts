@@ -5,10 +5,16 @@ export class ZoneNode {
   // 视图
   static view: ZoneView;
   // 扁平化的树
-  private static _list: ZoneNode[];
-  private static _index: number | null = null;
+  // private static _list: ZoneNode[];
+  // private static _index: number | null = null;
+
   // 根节点
-  private static _root: ZoneNode | null = null;
+  // private static _root: ZoneNode | null = null;
+  static firstNode: ZoneNode | null = null;
+  static lastNode: ZoneNode | null = null;
+  static currentNode: ZoneNode | null = null;
+  static focusedNode: ZoneNode | null = null;
+  static activedNode: ZoneNode | null = null;
 
   // 节点值
   treeItem: HTMLElement;
@@ -17,6 +23,8 @@ export class ZoneNode {
   depth: number; // 样式渲染需要知道节点的深度
   // 子节点
   children: ZoneNode[];
+  before: ZoneNode | null = null;
+  after: ZoneNode | null = null;
   // 文件夹节点专有元素
   treeItemIcon: HTMLElement | null = null;
   treeItemChildren: HTMLElement | null = null;
@@ -24,27 +32,93 @@ export class ZoneNode {
   tName: string;
   tExt: string;
 
-  static renderTree(rootPath: string, el: HTMLElement) {
-    let root = this.view.app.vault.getFolderByPath(rootPath);
-
+  static renderTree(path: string, el: HTMLElement, depth: number) {
+    let root = this.view.app.vault.getFolderByPath(path);
+    
     // 分离 folder 和 file
     let folderList: Array<TFolder> = [];
     let fileList: Array<TFile> = [];
     root?.children.forEach((t) => t instanceof TFolder ? folderList.push(t) : fileList.push(t as TFile));
     folderList.sort();
     fileList.sort();
+    let zoneNodeList: Array<ZoneNode> = [
+      ...folderList.map(t => new ZoneNode(t, depth)),
+      ...fileList.map(t => new ZoneNode(t, depth))
+    ];
+    if (!ZoneNode.firstNode) {
+      ZoneNode.firstNode = zoneNodeList.first() ?? null;
+    }
+    if (!ZoneNode.lastNode) {
+      ZoneNode.lastNode = zoneNodeList.last() ?? null;
+    }
+    // 处理节点链表
+    let previousNode: ZoneNode | null = ZoneNode.currentNode;
+    let lastNode: ZoneNode | null = previousNode?.after ?? null;
+    zoneNodeList.forEach((presentNode, index) => {
+      if (previousNode) {
+        previousNode.after = presentNode;
+        presentNode.before = previousNode;
+      }
+      previousNode = presentNode;
+      // 挂载到DOM
+      el.appendChild(presentNode.treeItem);
+    });
+    if (previousNode && lastNode) {
+      previousNode.after = lastNode;
+      lastNode.before = previousNode;
+    }
+  }
 
-    let tempNode: ZoneNode;
-    // 渲染文件夹部分 nav-folder
-    folderList.forEach(t => {
-      let n = new ZoneNode(t, 0);
-      el.appendChild(n.treeItem);
-    });
-    // 渲染文件部分 nav-file
-    fileList.forEach(t => {
-      let n = new ZoneNode(t, 0);
-      el.appendChild(n.treeItem);
-    });
+  static downExplorerCursor() {
+    ZoneNode.currentNode = ZoneNode.currentNode?.after ?? ZoneNode.firstNode;
+    ZoneNode.focusCurrentNode();
+  }
+
+  static upExplorerCursor() {
+    ZoneNode.currentNode = ZoneNode.currentNode?.before ?? ZoneNode.lastNode;
+    ZoneNode.focusCurrentNode();
+  }
+
+  static focusCurrentNode() {
+    ZoneNode.focusedNode?.treeItemSelf.removeClass('has-focus');
+    ZoneNode.focusedNode = ZoneNode.currentNode;
+    ZoneNode.focusedNode?.treeItemSelf.addClass('has-focus');
+  }
+
+  static expandCurrentFolder() {
+    if (ZoneNode.currentNode?.t instanceof TFolder &&
+        !ZoneNode.currentNode.treeItemChildren
+    ) {
+      ZoneNode.currentNode.treeItem.removeClass('is-collapsed');
+      ZoneNode.currentNode.treeItemIcon?.removeClass('is-collapsed');
+      ZoneNode.currentNode.treeItemChildren = ZoneNode.currentNode.treeItem.createDiv({
+        cls: ['tree-item-children', 'nav-folder-children']
+      });
+      ZoneNode.renderTree(
+        ZoneNode.currentNode.t.path, 
+        ZoneNode.currentNode.treeItemChildren,
+        ZoneNode.currentNode.depth + 1,
+      );
+    }
+  }
+
+  static collapseExplorerFolder() {
+    if (ZoneNode.currentNode?.t instanceof TFolder &&
+        ZoneNode.currentNode.treeItemChildren
+    ) {
+      ZoneNode.currentNode.treeItem.addClass('is-collapsed');
+      ZoneNode.currentNode.treeItemIcon?.addClass('is-collapsed');
+      ZoneNode.currentNode.treeItemChildren.remove();
+      ZoneNode.currentNode.treeItemChildren = null;
+      let nextNode: ZoneNode | null = ZoneNode.currentNode.after;
+      while(nextNode !== null && ZoneNode.currentNode.depth < nextNode?.depth) {
+        nextNode = nextNode.after;
+      }
+      ZoneNode.currentNode.after = nextNode;
+      if (nextNode) {
+        nextNode.before = ZoneNode.currentNode.after;
+      }
+    }
   }
 
   constructor(t: TFolder | TFile, depth: number) {
@@ -64,12 +138,8 @@ export class ZoneNode {
   renderNode() {
     if (this.t instanceof TFolder) {
       this.renderFolderNode();
-      console.log('folder');
-      console.log(this.t);
     } else if (this.t instanceof TFile) {
       this.renderFileNode();
-      console.log('file');
-      console.log(this.t);
     } else {
       console.log('not folder and file');
       console.log(this.t)
@@ -135,27 +205,8 @@ export class ZoneNode {
     });
   }
 
-  // 前序遍历 N 叉树
-  preOrderTraversal(result: ZoneNode[]): void {
-    result.push(this);
-    this.children.forEach(e => e.preOrderTraversal(result));
-  }
-
-  upExplorerCursor() {}
-
-  downExplorerCursor() {}
-
-  expandExplorerFolder() {}
-
-  collapseExplorerFolder() {}
-
   openFile() {}
 
   openFolder() {}
-
-  // 设置为根节点
-  setToRoot() {
-    ZoneNode._root = this;
-  }
 
 }
