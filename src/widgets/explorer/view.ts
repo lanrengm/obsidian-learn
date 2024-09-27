@@ -1,6 +1,5 @@
-import { View, TFolder, TFile } from 'obsidian';
+import { View } from 'obsidian';
 
-import { ZoneFile, ZoneFolder } from './oldtree';
 import { ZoneNode, ZoneTree } from './tree';
 
 export const VIEW_TYPE = "zone-explorer";
@@ -9,6 +8,9 @@ export class ZoneView extends View {
   icon: string = 'list-tree';
   navigation: boolean = false;
   navFilesContainer: HTMLElement;
+
+  paddingLeft: string = '24px';
+
   tree1: ZoneTree | null = null;
 
   getViewType(): string {
@@ -28,34 +30,11 @@ export class ZoneView extends View {
     })
     let mountedEl = this.navFilesContainer.createDiv();
     // 获取左边距
-    ZoneNode.paddingLeft = mountedEl.createDiv({
+    this.paddingLeft = mountedEl.createDiv({
       attr: {'style': 'padding: var(--nav-item-padding);'}
     }).getCssPropertyValue('padding-left');
     this.tree1 = new ZoneTree(this);
-    this.tree1.setRoot('/').createTree(mountedEl);
-
-    // 方向键监听
-    this.navFilesContainer.addEventListener('keydown', (evt) => {
-      console.log(evt.key);
-      switch (evt.key) {
-        case 'ArrowDown': {
-          ZoneNode.downExplorerCursor();
-          break;
-        }
-        case 'ArrowUp': {
-          ZoneNode.upExplorerCursor();
-          break;
-        }
-        case 'ArrowRight': {
-          ZoneNode.expandCurrentFolder();
-          break;
-        }
-        case 'ArrowLeft': {
-          ZoneNode.collapseExplorerFolder();
-          break;
-        }
-      }
-    });
+    this.tree1.showRoot('/', mountedEl);
   }
 
   async onClose(): Promise<void> {

@@ -2,7 +2,6 @@ import { TFolder, TFile } from 'obsidian';
 import { ZoneView } from './view';
 
 export class ZoneNode {
-  static paddingLeft: string = '24px';
   // tree
   tree: ZoneTree;
   parent: ZoneNode | null = null;
@@ -12,7 +11,7 @@ export class ZoneNode {
   previous: ZoneNode | null = null;
   next: ZoneNode | null = null;
   // value
-  t: TFolder | TFile;
+  t: TFolder | TFile | null;
   // dom
   treeItem: HTMLElement;
   treeItemSelf: HTMLElement;
@@ -23,69 +22,17 @@ export class ZoneNode {
   tName: string;
   tExt: string;
 
-  static downExplorerCursor() {
-    ZoneNode.currentNode = ZoneNode.currentNode?.after ?? ZoneNode.firstNode;
-    ZoneNode.focusCurrentNode();
-  }
-
-  static upExplorerCursor() {
-    ZoneNode.currentNode = ZoneNode.currentNode?.before ?? ZoneNode.lastNode;
-    ZoneNode.focusCurrentNode();
-  }
-
-  static focusCurrentNode() {
-    ZoneNode.focusedNode?.treeItemSelf.removeClass('has-focus');
-    ZoneNode.focusedNode = ZoneNode.currentNode;
-    ZoneNode.focusedNode?.treeItemSelf.addClass('has-focus');
-  }
-
-  static expandCurrentFolder() {
-    if (ZoneNode.currentNode?.t instanceof TFolder &&
-        !ZoneNode.currentNode.treeItemChildren
-    ) {
-      ZoneNode.currentNode.treeItem.removeClass('is-collapsed');
-      ZoneNode.currentNode.treeItemIcon?.removeClass('is-collapsed');
-      ZoneNode.currentNode.treeItemChildren = ZoneNode.currentNode.treeItem.createDiv({
-        cls: ['tree-item-children', 'nav-folder-children']
-      });
-      ZoneNode.renderTree(
-        ZoneNode.currentNode.t.path, 
-        ZoneNode.currentNode.treeItemChildren,
-        ZoneNode.currentNode.depth + 1,
-      );
-    }
-  }
-
-  static collapseExplorerFolder() {
-    if (ZoneNode.currentNode?.t instanceof TFolder &&
-        ZoneNode.currentNode.treeItemChildren
-    ) {
-      ZoneNode.currentNode.treeItem.addClass('is-collapsed');
-      ZoneNode.currentNode.treeItemIcon?.addClass('is-collapsed');
-      ZoneNode.currentNode.treeItemChildren.remove();
-      ZoneNode.currentNode.treeItemChildren = null;
-      let nextNode: ZoneNode | null = ZoneNode.currentNode.after;
-      while(nextNode !== null && ZoneNode.currentNode.depth < nextNode?.depth) {
-        nextNode = nextNode.next;
-      }
-      ZoneNode.currentNode.after = nextNode;
-      if (nextNode) {
-        nextNode.previous = ZoneNode.currentNode.after;
-      }
-    }
-  }
-
   constructor(tree: ZoneTree, path: string) {
     this.tree = tree;
-    this.t = this.tree.view.app.vault.getAbstractFileByPath(path);
+    this.t = this.tree.view.app.vault.getFolderByPath(path);
     this.sortChildrenT();
   }
 
-  createChildrenNode(mountedEl: HTMLElement, depth: number) {
-    this.children.forEach(node => node.createNode(mountedEl, depth+1));
+  showChildren(mountedEl: HTMLElement, depth: number) {
+    this.children.forEach(node => node.showSelf(mountedEl, depth+1));
   }
 
-  createNode(mountedEl: HTMLElement, depth: number) {
+  showSelf(mountedEl: HTMLElement, depth: number) {
     this.renderInit(depth);
     if (this.t instanceof TFolder) {
       this.renderFolderEl();
@@ -103,7 +50,7 @@ export class ZoneNode {
     this.treeItemSelf = this.treeItem.createDiv({
       cls: ['tree-item-self', 'is-clickable'],
       attr: {
-        'style': `margin-inline-start: -${depth * 17}px !important; padding-inline-start: calc( ${ZoneNode.paddingLeft} + ${depth * 17}px) !important;`
+        'style': `margin-inline-start: -${depth * 17}px !important; padding-inline-start: calc( ${this.tree.view.paddingLeft} + ${depth * 17}px) !important;`
       }
     });
   }
@@ -164,6 +111,18 @@ export class ZoneNode {
     });
   }
 
+  focus() {
+    this.treeItemSelf.addClass('has-focus')
+  }
+  unfocus() {
+    this.treeItemSelf.removeClass('has-focus');
+  }
+  active() {
+    this.treeItemSelf.addClass('is-active')
+  }
+  unactive() {
+    this.treeItemSelf.removeClass('is-active');
+  }
 }
 
 export class ZoneTree {
@@ -172,51 +131,11 @@ export class ZoneTree {
   // tree
   root: ZoneNode | null = null;
   // chain
-  firstNode: ZoneNode | null = null;
-  lastNode: ZoneNode | null = null;
+  first: ZoneNode | null = null;
+  last: ZoneNode | null = null;
   // value
-  focusedNode: ZoneNode | null = null;
-  activedNode: ZoneNode | null = null;
-
-  renderLevel(path: string, mountedEl: HTMLElement, depth: number) {
-    let root = this.view.app.vault.getFolderByPath(path);
-    
-    if (!ZoneNode.firstNode) {
-      ZoneNode.firstNode = zoneNodeList.first() ?? null;
-    }
-    if (!ZoneNode.lastNode) {
-      ZoneNode.lastNode = zoneNodeList.last() ?? null;
-    }
-    // 处理节点链表
-    let previousNode: ZoneNode | null = ZoneNode.currentNode;
-    let lastNode: ZoneNode | null = previousNode?.next ?? null;
-    zoneNodeList.forEach((presentNode, index) => {
-      if (previousNode) {
-        previousNode.next = presentNode;
-        presentNode.previous = previousNode;
-      }
-      previousNode = presentNode;
-      // 挂载到DOM
-      mountedEl.appendChild(presentNode.treeItem);
-    });
-    if (previousNode && lastNode) {
-      previousNode.next = lastNode;
-      lastNode.previous = previousNode;
-    }
-  }
-
-  sortChildrenT() {
-    // 分离 folder 和 file
-    let folderList: Array<TFolder> = [];
-    let fileList: Array<TFile> = [];
-    this.t.children.forEach((t) => t instanceof TFolder ? folderList.push(t) : fileList.push(t as TFile));
-    folderList.sort();
-    fileList.sort();
-    let zoneNodeList: Array<ZoneNode> = [
-      ...folderList.map(t => new ZoneNode(t, depth)),
-      ...fileList.map(t => new ZoneNode(t, depth))
-    ];
-  }
+  focused: ZoneNode | null = null;
+  actived: ZoneNode | null = null;
 
   // 是否显示根节点
   enableShowRoot: boolean = false;
@@ -226,17 +145,14 @@ export class ZoneTree {
     this.view = view;
   }
 
-  setRoot(path: string): ZoneTree {
+  // create root
+  showRoot(path: string, mountedEl: HTMLElement) {
     this.root = new ZoneNode(this, path);
-    return this;
-  }
-
-  // 渲染可视元素
-  createTree(mountedEl: HTMLElement) {
     if (this.enableShowRoot) {
-      this.root?.createNode(mountedEl, 0);
+      this.root.showSelf(mountedEl, 0);
     } else {
-      this.root?.createChildrenNode(mountedEl, -1);
+      this.root.showChildren(mountedEl, -1);
     }
   }
+
 }
