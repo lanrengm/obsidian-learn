@@ -2,72 +2,26 @@ import { TFolder, TFile } from 'obsidian';
 import { ZoneView } from './view';
 
 export class ZoneNode {
-  // 视图
-  static view: ZoneView;
-  // 扁平化的树
-  // private static _list: ZoneNode[];
-  // private static _index: number | null = null;
-
-  // 根节点
-  // private static _root: ZoneNode | null = null;
-  static firstNode: ZoneNode | null = null;
-  static lastNode: ZoneNode | null = null;
-  static currentNode: ZoneNode | null = null;
-  static focusedNode: ZoneNode | null = null;
-  static activedNode: ZoneNode | null = null;
-
-  // 节点值
+  static paddingLeft: string = '24px';
+  // tree
+  tree: ZoneTree;
+  parent: ZoneNode | null = null;
+  children: ZoneNode[];
+  depth: number; // 样式渲染需要知道节点的深度
+  // chain
+  previous: ZoneNode | null = null;
+  next: ZoneNode | null = null;
+  // value
+  t: TFolder | TFile;
+  // dom
   treeItem: HTMLElement;
   treeItemSelf: HTMLElement;
-  t: TFolder | TFile;
-  depth: number; // 样式渲染需要知道节点的深度
-  // 子节点
-  children: ZoneNode[];
-  before: ZoneNode | null = null;
-  after: ZoneNode | null = null;
   // 文件夹节点专有元素
   treeItemIcon: HTMLElement | null = null;
   treeItemChildren: HTMLElement | null = null;
   // 文件节点专有元素
   tName: string;
   tExt: string;
-
-  static renderTree(path: string, el: HTMLElement, depth: number) {
-    let root = this.view.app.vault.getFolderByPath(path);
-    
-    // 分离 folder 和 file
-    let folderList: Array<TFolder> = [];
-    let fileList: Array<TFile> = [];
-    root?.children.forEach((t) => t instanceof TFolder ? folderList.push(t) : fileList.push(t as TFile));
-    folderList.sort();
-    fileList.sort();
-    let zoneNodeList: Array<ZoneNode> = [
-      ...folderList.map(t => new ZoneNode(t, depth)),
-      ...fileList.map(t => new ZoneNode(t, depth))
-    ];
-    if (!ZoneNode.firstNode) {
-      ZoneNode.firstNode = zoneNodeList.first() ?? null;
-    }
-    if (!ZoneNode.lastNode) {
-      ZoneNode.lastNode = zoneNodeList.last() ?? null;
-    }
-    // 处理节点链表
-    let previousNode: ZoneNode | null = ZoneNode.currentNode;
-    let lastNode: ZoneNode | null = previousNode?.after ?? null;
-    zoneNodeList.forEach((presentNode, index) => {
-      if (previousNode) {
-        previousNode.after = presentNode;
-        presentNode.before = previousNode;
-      }
-      previousNode = presentNode;
-      // 挂载到DOM
-      el.appendChild(presentNode.treeItem);
-    });
-    if (previousNode && lastNode) {
-      previousNode.after = lastNode;
-      lastNode.before = previousNode;
-    }
-  }
 
   static downExplorerCursor() {
     ZoneNode.currentNode = ZoneNode.currentNode?.after ?? ZoneNode.firstNode;
@@ -112,41 +66,49 @@ export class ZoneNode {
       ZoneNode.currentNode.treeItemChildren = null;
       let nextNode: ZoneNode | null = ZoneNode.currentNode.after;
       while(nextNode !== null && ZoneNode.currentNode.depth < nextNode?.depth) {
-        nextNode = nextNode.after;
+        nextNode = nextNode.next;
       }
       ZoneNode.currentNode.after = nextNode;
       if (nextNode) {
-        nextNode.before = ZoneNode.currentNode.after;
+        nextNode.previous = ZoneNode.currentNode.after;
       }
     }
   }
 
-  constructor(t: TFolder | TFile, depth: number) {
-    this.t = t;
-    this.depth = depth;
-
-    this.treeItem = createDiv({cls: 'tree-item'});
-    this.treeItemSelf = this.treeItem.createDiv({
-      cls: ['tree-item-self', 'is-clickable'],
-      attr: {
-        'style': `margin-inline-start: -${this.depth * 17}px !important; padding-inline-start: calc( ${ZoneNode.view.paddingLeft} + ${this.depth * 17}px) !important;`
-      }
-    });
-    this.renderNode();
+  constructor(tree: ZoneTree, path: string) {
+    this.tree = tree;
+    this.t = this.tree.view.app.vault.getAbstractFileByPath(path);
+    this.sortChildrenT();
   }
 
-  renderNode() {
+  createChildrenNode(mountedEl: HTMLElement, depth: number) {
+    this.children.forEach(node => node.createNode(mountedEl, depth+1));
+  }
+
+  createNode(mountedEl: HTMLElement, depth: number) {
+    this.renderInit(depth);
     if (this.t instanceof TFolder) {
-      this.renderFolderNode();
+      this.renderFolderEl();
     } else if (this.t instanceof TFile) {
-      this.renderFileNode();
+      this.renderFileEl();
     } else {
       console.log('not folder and file');
       console.log(this.t)
     }
+    mountedEl.appendChild(this.treeItem);
   }
 
-  renderFolderNode() {
+  private renderInit(depth: number) {
+    this.treeItem = createDiv({cls: 'tree-item'});
+    this.treeItemSelf = this.treeItem.createDiv({
+      cls: ['tree-item-self', 'is-clickable'],
+      attr: {
+        'style': `margin-inline-start: -${depth * 17}px !important; padding-inline-start: calc( ${ZoneNode.paddingLeft} + ${depth * 17}px) !important;`
+      }
+    });
+  }
+
+  private renderFolderEl() {
     this.treeItem.addClasses(['nav-folder', 'is-collapsed']);
     this.treeItemSelf.addClasses(['nav-folder-title', 'mod-collapsible']);
     // create icon
@@ -170,17 +132,16 @@ export class ZoneNode {
     svgIcon.createSvg('path', { attr: {
       'd': 'M3 8L12 17L21 8'
     }});
-    // create text
+    // inner
     this.treeItemSelf.createDiv({
       cls: ['tree-item-inner', 'nav-folder-title-content'],
       text: this.t.path === '/' ? this.t.path : this.t.name,
     });
   }
 
-  renderFileNode() {
+  private renderFileEl() {
     this.treeItem.addClass('nav-file');
     this.treeItemSelf.addClasses(['nav-file-title', 'tappable']);
-
     // 文件后缀名处理
     let re = /(.*)\.([A-Za-z]*)$/;
     let res: string[] | null = re.exec(this.t.name);
@@ -191,22 +152,91 @@ export class ZoneNode {
       this.tName = this.t.name;
       this.tExt = 'nul';
     }
-
-    // create text
+    // inner
     this.treeItemSelf.createDiv({
       text: this.tName,
       cls: ['tree-item-inner', 'nav-file-title-content']
     });
-
-    // create tag
+    // tag
     this.treeItemSelf.createDiv({
       text: this.tExt,
       cls: 'nav-file-tag'
     });
   }
 
-  openFile() {}
+}
 
-  openFolder() {}
+export class ZoneTree {
+  // 视图
+  view: ZoneView;
+  // tree
+  root: ZoneNode | null = null;
+  // chain
+  firstNode: ZoneNode | null = null;
+  lastNode: ZoneNode | null = null;
+  // value
+  focusedNode: ZoneNode | null = null;
+  activedNode: ZoneNode | null = null;
 
+  renderLevel(path: string, mountedEl: HTMLElement, depth: number) {
+    let root = this.view.app.vault.getFolderByPath(path);
+    
+    if (!ZoneNode.firstNode) {
+      ZoneNode.firstNode = zoneNodeList.first() ?? null;
+    }
+    if (!ZoneNode.lastNode) {
+      ZoneNode.lastNode = zoneNodeList.last() ?? null;
+    }
+    // 处理节点链表
+    let previousNode: ZoneNode | null = ZoneNode.currentNode;
+    let lastNode: ZoneNode | null = previousNode?.next ?? null;
+    zoneNodeList.forEach((presentNode, index) => {
+      if (previousNode) {
+        previousNode.next = presentNode;
+        presentNode.previous = previousNode;
+      }
+      previousNode = presentNode;
+      // 挂载到DOM
+      mountedEl.appendChild(presentNode.treeItem);
+    });
+    if (previousNode && lastNode) {
+      previousNode.next = lastNode;
+      lastNode.previous = previousNode;
+    }
+  }
+
+  sortChildrenT() {
+    // 分离 folder 和 file
+    let folderList: Array<TFolder> = [];
+    let fileList: Array<TFile> = [];
+    this.t.children.forEach((t) => t instanceof TFolder ? folderList.push(t) : fileList.push(t as TFile));
+    folderList.sort();
+    fileList.sort();
+    let zoneNodeList: Array<ZoneNode> = [
+      ...folderList.map(t => new ZoneNode(t, depth)),
+      ...fileList.map(t => new ZoneNode(t, depth))
+    ];
+  }
+
+  // 是否显示根节点
+  enableShowRoot: boolean = false;
+
+  // 拿到根节点，创建一个树
+  constructor(view: ZoneView) {
+    this.view = view;
+  }
+
+  setRoot(path: string): ZoneTree {
+    this.root = new ZoneNode(this, path);
+    return this;
+  }
+
+  // 渲染可视元素
+  createTree(mountedEl: HTMLElement) {
+    if (this.enableShowRoot) {
+      this.root?.createNode(mountedEl, 0);
+    } else {
+      this.root?.createChildrenNode(mountedEl, -1);
+    }
+  }
 }
