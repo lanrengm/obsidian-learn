@@ -8,7 +8,8 @@
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production  && yarn dist",
     "version": "node version-bump.mjs && git add manifest.json versions.json",
     "dist": "xcopy /y manifest.json .\\dist\\ && xcopy /y main.js .\\dist\\ && xcopy /y styles.css .\\dist\\",
-    "install": "yarn run build && xcopy /s/y dist D:\\Dropbox\\.obsidian\\plugins\\plugin-1\\"
+    "install": "yarn run build && xcopy /s/y dist D:\\Dropbox\\.obsidian\\plugins\\plugin-1\\",
+    "test": "tsc test/test.ts && node test/test.js"
   },
   "keywords": [],
   "author": "",

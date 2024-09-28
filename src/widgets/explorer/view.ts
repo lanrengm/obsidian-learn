@@ -1,6 +1,6 @@
 import { View } from 'obsidian';
 
-import { ZoneNode, ZoneTree } from './tree';
+import { ZoneTree } from './tree';
 
 export const VIEW_TYPE = "zone-explorer";
 
@@ -33,8 +33,8 @@ export class ZoneView extends View {
     this.paddingLeft = mountedEl.createDiv({
       attr: {'style': 'padding: var(--nav-item-padding);'}
     }).getCssPropertyValue('padding-left');
-    this.tree1 = new ZoneTree(this);
-    this.tree1.showRoot('/', mountedEl);
+    // 显示 tree
+    this.tree1 = new ZoneTree(this, mountedEl, '/');
   }
 
   async onClose(): Promise<void> {
