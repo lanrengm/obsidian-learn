@@ -24,7 +24,7 @@ export class VC {
   }
 
   // 插入节点，插入到下一个位置
-  insert(current: VC) {
+  insertNext(current: VC): void {
     let previous: VC = this;
     let next: VCNullable = this.next;
     previous.next = current;
@@ -35,21 +35,35 @@ export class VC {
     }
   }
 
-  // 删除节点，删除自己
-  remove() {
-    let previous: VCNullable = this.previous;
-    let current: VC = this;
-    let next: VCNullable = this.next;
+  // 从链中删除节点，删除当前节点的下一个
+  removeNext(): VCNullable {
+    let previous: VC = this;
+    let current: VCNullable = this.next;
+    let next: VCNullable = current?.next ?? null;
     if (current) {
-      current.next = null;
       current.previous = null;
-      if (next) {
-		previous.next = next;
-        next.previous = previous;
-      } else {
-        previous.next = null;
-      }
+      current.next = null;
     }
+    previous.next = next;
+    if (next) next.previous = previous;
+    return current;
+  }
+
+  // 从链中删除指定数量的节点，删除当前节点的后续节点， 相当于删除子链，返回子链的头节点
+  removeNextN(n: number): VCNullable {
+    let head: VCNullable = this.next;
+    let current: VCNullable = head;
+    while (current && n >= 1) {
+      current = current.next;
+      n--;
+    }
+    let previous: VC = this;
+    let next: VCNullable = current?.next ?? null;
+    previous.next = next;
+    if (next) next.previous = previous;
+    if (head) head.previous = null;
+    if (current) current.next = null;
+    return head;
   }
 
   testPrint() {
