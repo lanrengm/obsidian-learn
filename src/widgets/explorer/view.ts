@@ -1,6 +1,6 @@
-import { View } from 'obsidian';
+import { View, TFile, WorkspaceLeaf } from 'obsidian';
 
-import { DOM, TFNullable, VTreeNode, VTree } from './vtree';
+import { VTreeNode, VTree } from './vtree';
 
 
 export const VIEW_TYPE = "zone-explorer";
@@ -43,7 +43,7 @@ export class ZoneView extends View {
     let root = new VTreeNode()
       .initDOM(this.paddingLeft, -1)
       .initTreeNode(this.app.vault.getFolderByPath('/'));
-    this.usedTree = new VTree(root).mountNulRoot(this.mountedPoint);
+    this.usedTree = new VTree({root: root, view: this}).mountNulRoot(this.mountedPoint);
     // key event
     this.registerKeyEvent();
     this.registerMouseEvent();
@@ -71,6 +71,14 @@ export class ZoneView extends View {
         }
         case 'ArrowRight': {
           this.usedTree?.focused?.expandChildren(this.usedTree);
+          break;
+        }
+        case 'Enter': {
+          if (this.usedTree?.focused) {
+            this.usedTree.focused.openFile({
+              leaf: this.app.workspace.getLeaf(false),
+            });
+          }
           break;
         }
       }

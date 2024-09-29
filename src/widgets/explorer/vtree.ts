@@ -4,7 +4,8 @@
 
 // VT - Tree 虚拟树
 
-import { TAbstractFile, TFolder, TFile } from "obsidian";
+import { TAbstractFile, TFolder, TFile, WorkspaceLeaf } from "obsidian";
+import { ZoneView } from "./view";
 
 export class DOM {
   item: HTMLElement;
@@ -233,6 +234,19 @@ export class VTreeNode extends VChainNode {
     return this;
   }
 
+  getSortedTFChildren(): TAbstractFile[] {
+    if (this.tF instanceof TFolder) {
+      let folderArr: TFolder[] = [];
+      let fileArr: TFile[] = [];
+      this.tF.children.forEach(e => {
+        e instanceof TFolder ? folderArr.push(e) : fileArr.push(e as TFile);
+      })
+      return [...folderArr, ...fileArr] as TAbstractFile[];
+    } else {
+      return [];
+    }
+  }
+
   expandChildren(vTree: VTree) {
     if (this.tF instanceof TFolder && !this.isExpanded) {
       let current = this;
@@ -264,28 +278,28 @@ export class VTreeNode extends VChainNode {
     }
   }
 
-  getSortedTFChildren(): TAbstractFile[] {
-    if (this.tF instanceof TFolder) {
-      let folderArr: TFolder[] = [];
-      let fileArr: TFile[] = [];
-      this.tF.children.forEach(e => {
-        e instanceof TFolder ? folderArr.push(e) : fileArr.push(e as TFile);
-      })
-      return [...folderArr, ...fileArr] as TAbstractFile[];
-    } else {
-      return [];
+  openFile(props: {leaf: WorkspaceLeaf}) {
+    const { leaf } = props;
+    if (this.tF instanceof TFile) {
+      leaf.openFile(this.tF, { eState: { focus: true } });
     }
   }
 }
 
 export class VTree {
+  view: ZoneView;
   root: VTreeNode;
   focused: VTreeNode | null = null;
   actived: VTreeNode | null = null;
   mountedPoint: HTMLElement | null = null;
 
-  constructor(root: VTreeNode) {
+  constructor(props: {
+    root: VTreeNode,
+    view: ZoneView,
+  }) {
+    const { root, view } = props;
     this.root = root;
+    this.view = view;
     this.registerClickEvent(root);
   }
 
@@ -341,6 +355,9 @@ export class VTree {
   onClickFile(node: VTreeNode) {
     this.focused?.unfocus();
     node.focus();
+    node.openFile({
+      leaf: this.view.app.workspace.getLeaf(false),
+    });
     this.focused = node;
     this.actived?.unactive();
     node.active();
@@ -372,4 +389,7 @@ export class VTree {
     }
   }
   
+  openFile() {
+    
+  }
 }
