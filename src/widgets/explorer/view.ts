@@ -1,6 +1,8 @@
 import { View } from 'obsidian';
 
-import { ZoneTree } from './tree';
+import { ElNullable, DOM } from './dom';
+import { TFNullable, VTreeNode, VTreeNodeNullable, VTree, VTreeNullable } from './vtree';
+
 
 export const VIEW_TYPE = "zone-explorer";
 
@@ -8,10 +10,10 @@ export class ZoneView extends View {
   icon: string = 'list-tree';
   navigation: boolean = false;
   navFilesContainer: HTMLElement;
+  mountedPoint: ElNullable;
 
   paddingLeft: string = '24px';
-
-  tree1: ZoneTree | null = null;
+  tree1: VTreeNullable = null;
 
   getViewType(): string {
     return VIEW_TYPE;
@@ -28,13 +30,17 @@ export class ZoneView extends View {
         'tabindex': '-1', // 使 div 能够监听键盘事件
       }
     })
-    let mountedEl = this.navFilesContainer.createDiv();
+    this.mountedPoint = this.navFilesContainer.createDiv();
     // 获取左边距
-    this.paddingLeft = mountedEl.createDiv({
+    this.paddingLeft = this.mountedPoint.createDiv({
       attr: {'style': 'padding: var(--nav-item-padding);'}
     }).getCssPropertyValue('padding-left');
     // 显示 tree
-    this.tree1 = new ZoneTree(this, mountedEl, '/');
+    let root = new VTreeNode(
+      this.app.vault.getFolderByPath('/'),
+      new DOM(this.paddingLeft, 0),
+    );
+    this.tree1 = new VTree(root).mount(this.mountedPoint);
   }
 
   async onClose(): Promise<void> {
