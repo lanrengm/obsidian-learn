@@ -1,7 +1,6 @@
 import { View } from 'obsidian';
 
-import { ElNullable, DOM } from './dom';
-import { TFNullable, VTreeNode, VTreeNodeNullable, VTree, VTreeNullable } from './vtree';
+import { DOM, TFNullable, VTreeNode, VTree } from './vtree';
 
 
 export const VIEW_TYPE = "zone-explorer";
@@ -10,10 +9,10 @@ export class ZoneView extends View {
   icon: string = 'list-tree';
   navigation: boolean = false;
   navFilesContainer: HTMLElement;
-  mountedPoint: ElNullable;
+  mountedPoint: HTMLElement | null;
 
   paddingLeft: string = '24px';
-  tree1: VTreeNullable = null;
+  usedTree: VTree | null = null;
 
   getViewType(): string {
     return VIEW_TYPE;
@@ -27,23 +26,60 @@ export class ZoneView extends View {
     this.navFilesContainer = this.containerEl.createDiv({
       cls: ['nav-files-container', 'node-insert-event', 'show-unsupported'],
       attr: {
-        'tabindex': '-1', // 使 div 能够监听键盘事件
+        'tabindex': '1', // 使 div 能够监听键盘事件
       }
-    })
+    });
     this.mountedPoint = this.navFilesContainer.createDiv();
     // 获取左边距
     this.paddingLeft = this.mountedPoint.createDiv({
       attr: {'style': 'padding: var(--nav-item-padding);'}
     }).getCssPropertyValue('padding-left');
     // 显示 tree
-    let root = new VTreeNode(
-      this.app.vault.getFolderByPath('/'),
-      new DOM(this.paddingLeft, 0),
-    );
-    this.tree1 = new VTree(root).mount(this.mountedPoint);
+    // let root = new VTreeNode()
+    //   .initDOM(this.paddingLeft, 0)
+    //   .initTreeNode(this.app.vault.getFolderByPath('/'));
+    // this.usedTree = new VTree(root).mount(this.mountedPoint);
+    
+    let root = new VTreeNode()
+      .initDOM(this.paddingLeft, -1)
+      .initTreeNode(this.app.vault.getFolderByPath('/'));
+    this.usedTree = new VTree(root).mountNulRoot(this.mountedPoint);
+    // key event
+    this.registerKeyEvent();
+    this.registerMouseEvent();
   }
 
   async onClose(): Promise<void> {
     this.containerEl.empty();
+  }
+
+  registerKeyEvent() {
+    this.navFilesContainer.addEventListener('keydown', evt => {
+      console.log(evt.key);
+      switch (evt.key) {
+        case 'ArrowUp': {
+          this.usedTree?.upCourse();
+          break;
+        }
+        case 'ArrowDown': {
+          this.usedTree?.donwCourse();
+          break;
+        }
+        case 'ArrowLeft': {
+          this.usedTree?.focused?.collapseChildren();
+          break;
+        }
+        case 'ArrowRight': {
+          this.usedTree?.focused?.expandChildren(this.usedTree);
+          break;
+        }
+      }
+    });
+  }
+
+  registerMouseEvent() {
+    this.navFilesContainer.onClickEvent(evt => {
+      this.usedTree?.focused?.unfocus();
+    });
   }
 }
