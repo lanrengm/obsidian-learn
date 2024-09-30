@@ -1,18 +1,24 @@
 import { View, TFile, WorkspaceLeaf } from 'obsidian';
 
-import { VTreeNode, VTree } from './vtree';
+import { VTree } from './tree';
+import { WidgetExplorer } from './main';
 
 
 export const VIEW_TYPE = "zone-explorer";
 
 export class ZoneView extends View {
+  widget: WidgetExplorer;
   icon: string = 'list-tree';
   navigation: boolean = false;
   navFilesContainer: HTMLElement;
   mountedPoint: HTMLElement | null;
-
   paddingLeft: string = '24px';
   usedTree: VTree | null = null;
+
+  constructor(widget: WidgetExplorer, leaf: WorkspaceLeaf) {
+    super(leaf);
+    this.widget = widget;
+  }
 
   getViewType(): string {
     return VIEW_TYPE;
@@ -25,9 +31,7 @@ export class ZoneView extends View {
   async onOpen(): Promise<void> {
     this.navFilesContainer = this.containerEl.createDiv({
       cls: ['nav-files-container', 'node-insert-event', 'show-unsupported'],
-      attr: {
-        'tabindex': '1', // 使 div 能够监听键盘事件
-      }
+      attr: {'tabindex': '1'}, // 使 div 能够监听键盘事件
     });
     this.mountedPoint = this.navFilesContainer.createDiv();
     // 获取左边距
@@ -35,15 +39,8 @@ export class ZoneView extends View {
       attr: {'style': 'padding: var(--nav-item-padding);'}
     }).getCssPropertyValue('padding-left');
     // 显示 tree
-    // let root = new VTreeNode()
-    //   .initDOM(this.paddingLeft, 0)
-    //   .initTreeNode(this.app.vault.getFolderByPath('/'));
-    // this.usedTree = new VTree(root).mount(this.mountedPoint);
-    
-    let root = new VTreeNode()
-      .initDOM(this.paddingLeft, -1)
-      .initTreeNode(this.app.vault.getFolderByPath('/'));
-    this.usedTree = new VTree({root: root, view: this}).mountNulRoot(this.mountedPoint);
+    this.usedTree = new VTree({view: this, rootPath: '/'});
+    this.usedTree.mount();
     // key event
     this.registerKeyEvent();
     this.registerMouseEvent();
@@ -58,26 +55,25 @@ export class ZoneView extends View {
       console.log(evt.key);
       switch (evt.key) {
         case 'ArrowUp': {
-          this.usedTree?.upCourse();
+          this.usedTree?.cursorUp();
           break;
         }
         case 'ArrowDown': {
-          this.usedTree?.donwCourse();
+          this.usedTree?.cursorDown();
           break;
         }
         case 'ArrowLeft': {
-          this.usedTree?.focused?.collapseChildren();
+          this.usedTree?.focused?.folderCollapse();
           break;
         }
         case 'ArrowRight': {
-          this.usedTree?.focused?.expandChildren(this.usedTree);
+          this.usedTree?.focused?.folderExpand();
           break;
         }
         case 'Enter': {
           if (this.usedTree?.focused) {
-            this.usedTree.focused.openFile({
-              leaf: this.app.workspace.getLeaf(false),
-            });
+            this.usedTree.focused.active();
+            this.usedTree.focused.openFile();
           }
           break;
         }
@@ -86,8 +82,11 @@ export class ZoneView extends View {
   }
 
   registerMouseEvent() {
-    this.navFilesContainer.onClickEvent(evt => {
-      this.usedTree?.focused?.unfocus();
+    this.navFilesContainer.addEventListener('click', evt => {
+      if (this.usedTree && this.usedTree.focused) {
+        this.usedTree.focused.unfocus();
+        this.usedTree.focused = null;
+      }
     });
   }
 }

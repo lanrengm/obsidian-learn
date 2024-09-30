@@ -1,102 +1,140 @@
-import { TFolder, TFile } from 'obsidian';
-import { ZoneView } from './view';
+// DOM 视图
+// VC 虚拟链， previous，next
+// VT - Node 虚拟树节点 (FS 文件系统)
 
-// 断开两个节点的连接
-function unlink(previous: ZoneNode | null, next: ZoneNode | null): void {
-  // 为保证操作的安全性，必须断开两个已连接的节点
-  if (
-    // previous 和 next 分别有两种状态： ChainNode, null, 都不为 null 保证安全
-    previous && next &&
-    // previous.next 有三种状态： null, other, next， 为 next 则安全
-    // next.previous 有三种状态： null, other, previous， 为 previous 则安全
-    previous.next === next && next.previous === previous
-  ) {
-    previous.next = null;
-    next.previous = null;
-  }
-  // previous 为空时，next.previous 也为空，则安全
-  else if (!previous && next && !next.previous) {}
-  // next 为空时，previous.next 也为空，则安全
-  else if (previous && !next && !previous.next) {}
-  // 以上选项都不匹配，意味着两个节点并不是已连接的，所以不能执行断开操作
-  else throw new Error(`无法断开两个未连接的节点: previous: ${previous}, next: ${next}`);
-}
+// VT - Tree 虚拟树
 
-// 连接两个节点
-function link(previous: ZoneNode | null, next: ZoneNode | null): void {
-  // 链接节点之前先断开节点的旧链接以保证安全
-  // previous 和 next 都为 ChainNode, 先断开两者的原始连接，再连接两者
-  if (previous && next) {
-    unlink(previous, previous.next);
-    unlink(next.previous, next);
-    previous.next = next;
-    next.previous = previous;
-  }
-  // previous 为 null, 只需要断开 next 的原始连接即可
-  else if (!previous && next) unlink(next.previous, next);
-  // next 为 null，只需要断开 previous 的原始连接即可
-  else if (previous && !next) unlink(previous, previous.next);
-  // 都为 null 时什么都不需要做
-  else {}
-}
+import { TAbstractFile, TFolder, TFile, WorkspaceLeaf } from "obsidian";
+import { ZoneView } from "./view";
 
-// 在链中插入节点，保证链的连续性
-function insertNode(previous: ZoneNode | null, node: ZoneNode | null): void {
-  let next = previous?.next ?? null;
-  link(previous, node);
-  link(node, next);
-}
 
-class ZoneNode {
-  // tree
-  tree: ZoneTree;
-  depth: number; // 样式渲染需要知道节点的深度
-  // chain
-  previous: ZoneNode | null = null;
-  next: ZoneNode | null = null;
+export type TFNullable = TAbstractFile | TFolder | TFile | null;
+export class VTreeNode {
+  tF: TFNullable;
+  tFSortedChildren: TAbstractFile[] = [];
+  children: this[] = [];
+  isExpanded: boolean = false;
+
   // dom
+  vTree: VTree;
   item: HTMLElement;
   itemTitle: HTMLElement;
+  itemTitleIcon: HTMLElement | null = null;
+  itemTitleText: HTMLElement | null = null;
+  itemTitleTag: HTMLElement | null = null;
+  itemChildren: HTMLElement | null = null;
+  isFolder: boolean = false;
+  depth: number = 0;
 
-  constructor(tree: ZoneTree, mountedEl: HTMLElement, depth: number) {
-    this.tree = tree;
-    // init
+  // chain
+  previous: this | null;
+  next: this | null;
+
+  constructor(props: {vTree: VTree, depth: number, tF: TFNullable}) {
+    const { vTree, depth, tF } = props;
+    this.vTree = vTree;
+    this.depth = depth;
+    this.tF = tF;
+    this.tFSortedChildren = this._getTFSortedChildren();
+    // init dom
     this.item = createDiv({cls: 'tree-item'});
     this.itemTitle = this.item.createDiv({
       cls: ['tree-item-self', 'is-clickable'],
       attr: {
-        'style': `margin-inline-start: -${depth * 17}px !important; padding-inline-start: calc( ${this.tree.view.paddingLeft} + ${depth * 17}px) !important;`
+        'style': `margin-inline-start: -${depth * 17}px !important; padding-inline-start: calc( ${this.vTree.view.paddingLeft} + ${depth * 17}px) !important;`
       }
     });
-    // mount
-    mountedEl.appendChild(this.item);
+    this.itemTitle.addEventListener('click', this.onClick);
+    this.itemTitle.addEventListener('auxclick', this.onAuxClick);
+    if (tF instanceof TFolder) {
+      this.renderFolder(tF.path === '/' ? tF.path : tF.name);
+    } else if (tF instanceof TFile) {
+      this.renderFile(tF.name);
+    }
   }
 
-  focus() {
-    this.itemTitle.addClass('has-focus')
+  private _getTFSortedChildren(): TAbstractFile[] {
+    if (this.tF instanceof TFolder) {
+      let folderArr: TFolder[] = [];
+      let fileArr: TFile[] = [];
+      this.tF.children.forEach(e => {
+        e instanceof TFolder ? folderArr.push(e) : fileArr.push(e as TFile);
+      })
+      return [...folderArr, ...fileArr] as TAbstractFile[];
+    } else {
+      return [];
+    }
   }
-  unfocus() {
-    this.itemTitle.removeClass('has-focus');
-  }
-  active() {
-    this.itemTitle.addClass('is-active')
-  }
-  unactive() {
-    this.itemTitle.removeClass('is-active');
-  }
-}
 
-class ZoneFolder extends ZoneNode {
-  tFolder: TFolder;
-  children: ZoneNode[];
-  // 文件夹节点专有元素
-  itemTitleIcon: HTMLElement;
-  itemTitleText: HTMLElement;
-  itemChildren: HTMLElement;
+  folderExpand() {
+    if (this.tF instanceof TFolder && !this.isExpanded) {
+      let current = this;
+      this.tFSortedChildren.forEach(tF => {
+        let n = new VTreeNode({
+          vTree: this.vTree,
+          depth: this.depth + 1,
+          tF: tF,
+        }) as this;
+        this.itemChildren?.appendChild(n.item); // DOM
+        current = current.insertNext(n); // VChain
+        this.children.push(n); // VTreeNode
+      });
+      this.isExpanded = true;
+      this.item.removeClass('is-collapsed');
+      this.itemTitleIcon?.removeClass('is-collapsed');
+    }
+  }
+
+  folderCollapse() {
+    if (this.tF instanceof TFolder && this.isExpanded) {
+      // 处理子链
+      this.children.forEach(e => {
+        if (e.isExpanded) e.folderCollapse();
+      });
+      this.itemChildren?.empty(); // DOM
+      this.removeNextN(this.children.length); // VChain
+      this.children = []; // VTreeNode
+      this.isExpanded = false;
+      this.item.addClass('is-collapsed');
+      this.itemTitleIcon?.addClass('is-collapsed');
+    }
+  }
+
+  openFile() {
+    let leaf: WorkspaceLeaf = this.vTree.view.app.workspace.getLeaf(false);
+    if (this.tF instanceof TFile) {
+      leaf.openFile(this.tF, { eState: { focus: true } });
+    }
+  }
+
+  onClick = (evt: MouseEvent) => {
+    // click folder
+    if (this.isFolder) {
+      // node
+      this.focus();
+      if (!this.isExpanded) {
+        this.folderExpand();
+      } else {
+        this.folderCollapse();
+      }
+    }
+    //  click file
+    else {
+      this.vTree.focused?.unfocus();
+      this.focus();
+      this.vTree.actived?.unactive();
+      this.active();
+      this.openFile();
+    }
+  }
+
+  onAuxClick = (evt: MouseEvent) => {
+    this.focus();
+  }
+
+  /* dom */
   
-  constructor(tree: ZoneTree, mountedEl: HTMLElement, depth: number, tFolder: TFolder) {
-    // init
-    super(tree, mountedEl, depth);
+  renderFolder(name: string): this {
     this.item.addClasses(['nav-folder', 'is-collapsed']);
     this.itemTitle.addClasses(['nav-folder-title', 'mod-collapsible']);
     this.itemTitleIcon = this.itemTitle.createDiv({ 
@@ -124,102 +162,233 @@ class ZoneFolder extends ZoneNode {
       cls: ['tree-item-children', 'nav-folder-children']
     });
     // set value
-    this.tFolder = tFolder;
-    this.itemTitleText.setText(
-      this.tFolder.path === '/' ? this.tFolder.path : this.tFolder.name
-    );
-    this.registerMouseClick();
+    this.itemTitleText?.setText(name);
+    this.isFolder = true;
+    return this;
   }
 
-  registerMouseClick() {
-    this.itemTitle.onClickEvent(evt => {
-      this.tree.focus(this);
-      this.expandFolder();
-    });
-  }
-
-  expandFolder() {
-    let folderArr: TFolder[] = [];
-    let fileArr: TFile[] = [];
-    this.tFolder.children.forEach(e => e instanceof TFolder ? folderArr.push(e) : fileArr.push(e as TFile));
-    let previous: ZoneNode = this;
-    folderArr.forEach(e => {
-      let node = new ZoneFolder(this.tree, this.itemChildren, this.depth + 1, e);
-      this.children.push(node);
-      insertNode(previous, node);
-      previous = node;
-    });
-    fileArr.forEach(e => {
-      let node = new ZoneFile(this.tree, this.itemChildren, this.depth + 1, e);
-      this.children.push(node);
-      insertNode(previous, node);
-      previous = node;
-    });
-  }
-}
-
-class ZoneFile extends ZoneNode {
-  tFile: TFile;
-  // 文件节点专有元素
-  tName: string;
-  tExt: string;
-
-  constructor(tree: ZoneTree, mountedEl: HTMLElement, depth: number, tFile: TFile) {
-    super(tree, mountedEl, depth);
-    this.tFile = tFile;
+  renderFile(name: string): this {
     // render
     this.item.addClass('nav-file');
     this.itemTitle.addClasses(['nav-file-title', 'tappable']);
     // 文件后缀名处理
     let re = /(.*)\.([A-Za-z]*)$/;
-    let res: string[] | null = re.exec(this.tFile.name);
+    let res: string[] | null = re.exec(name);
+    let tName: string;
+    let tExt: string;
     if (res) {
-      this.tName = res[1];
-      this.tExt = res[2] === 'md'? '' : res[2];
+      tName = res[1];
+      tExt = res[2] === 'md'? '' : res[2];
     } else {
-      this.tName = this.tFile.name;
-      this.tExt = 'nul';
+      tName = name;
+      tExt = 'nul';
     }
     // inner
-    this.itemTitle.createDiv({
-      text: this.tName,
+    this.itemTitleText = this.itemTitle.createDiv({
+      text: tName,
       cls: ['tree-item-inner', 'nav-file-title-content']
     });
     // tag
-    this.itemTitle.createDiv({
-      text: this.tExt,
+    this.itemTitleTag = this.itemTitle.createDiv({
+      text: tExt,
       cls: 'nav-file-tag'
     });
+    // set value
+    this.isFolder = false;
+    return this;
+  }
+
+  transToFile(name: string) {
+    this.item.removeClasses(['nav-folder', 'is-collapsed']);
+    this.itemTitle.removeClasses(['nav-folder-title', 'mod-collapsible']);
+    this.itemTitle.empty();
+    this.itemTitleIcon = null;
+    this.itemTitleText = null;
+    this.itemChildren?.remove();
+    this.itemChildren = null;
+    this.renderFile(name);
+    this.isFolder = false;
+  }
+
+  transToFolder(name: string) {
+    this.item.removeClass('nav-file');
+    this.itemTitle.removeClasses(['nav-file-title', 'tappable']);
+    this.itemTitle.empty();
+    this.itemTitleText = null;
+    this.itemTitleTag = null;
+    this.renderFolder(name);
+    this.isFolder = true;
+  }
+
+  focus() {
+    this.vTree.focused?.unfocus();
+    this.itemTitle.addClass('has-focus');
+    this.vTree.focused = this;
+  }
+
+  unfocus(): this {
+    this.itemTitle.removeClass('has-focus');
+    return this;
+  }
+
+  active() {
+    this.vTree.actived?.unactive();
+    this.itemTitle.addClass('is-active');
+    this.vTree.actived = this;
+  }
+
+  unactive(): this {
+    this.itemTitle.removeClass('is-active');
+    return this;
+  }
+
+  /* chain */
+  
+  // 插入节点，插入到下一个位置, 返回下一个节点
+  insertNext(current: this): this {
+    let previous: this = this;
+    let next: this | null = this.next;
+    previous.next = current;
+    current.previous = previous;
+    if (next) {
+      current.next = next;
+      next.previous = current;
+    }
+    return current;
+  }
+
+  // 插入子链，返回子链节点数量
+  // 插入自身或自身的子链会造成死循环
+  insertNextN(head: this | null): number {
+    if (!head) return 0;
+    let previous: this = this;
+    let next: this | null = this.next;
+    let last: this = head;
+    let count: number = 1;
+    while(last.next) {
+      last = last.next;
+      count++;
+    }
+    previous.next = head;
+    head.previous = previous;
+    last.next = next;
+    if (next) next.previous = last;
+    return count;
+  }
+
+  // 从链中删除节点，删除当前节点的下一个
+  removeNext(): this | null {
+    let previous: this = this;
+    let current: this | null = this.next;
+    let next: this | null = current?.next ?? null;
+    if (current) {
+      current.previous = null;
+      current.next = null;
+    }
+    previous.next = next;
+    if (next) next.previous = previous;
+    return current;
+  }
+
+  // 从链中删除指定数量的节点，删除当前节点的后续节点， 相当于删除子链，返回子链的头节点
+  removeNextN(n: number): this | null {
+    if (n<1) return null;
+    let head: this | null = this.next;
+    let current: this | null = head;
+    while (current && n > 1 ) {
+      current = current.next;
+      n = n - 1;
+    }
+    let previous: this = this;
+    let next: this | null = current?.next ?? null;
+    previous.next = next;
+    if (next) next.previous = previous;
+    if (head) head.previous = null;
+    if (current) current.next = null;
+    return head;
+  }
+
+  testPrint() {
+    let node: this | null = this;
+    while(node) {
+      console.log(node);
+      node = node.next;
+    }
   }
 }
 
-export class ZoneTree {
-  // 视图
+export class VTree {
   view: ZoneView;
-  // tree
-  root: ZoneNode | null = null;
-  // chain
-  first: ZoneNode | null = null;
-  last: ZoneNode | null = null;
-  // value
-  focused: ZoneNode | null = null;
-  actived: ZoneNode | null = null;
+  root: VTreeNode;
+  focused: VTreeNode | null = null;
+  actived: VTreeNode | null = null;
 
-  // 拿到根节点，创建一个树
-  constructor(view: ZoneView, mountedEl: HTMLElement, path: string) {
+  constructor(props: { view: ZoneView, rootPath: string }) {
+    const { view } = props;
     this.view = view;
-    // show root
-    let tFolder = this.view.app.vault.getFolderByPath(path);
-    if (tFolder) {
-        this.root = new ZoneFolder(this, mountedEl, 0, tFolder);
+    this.root = new VTreeNode({
+      vTree: this,
+      depth: 0,
+      tF: this.view.app.vault.getFolderByPath('/'),
+    });
+  }
+  
+  mount(): this {
+    this.view.mountedPoint?.empty();
+    if (this.view.widget.settings.enableRoot) {
+      // 挂载根
+      this.view.mountedPoint?.appendChild(this.root.item);
     } else {
-      throw new Error(`文件树根节点 ${path} 不是目录`);
+      // 不挂载根
+      // create children
+      this.root.depth = -1;
+      this.root.folderExpand();
+      if (this.root.next) {
+        this.root.children.forEach(vTreeNode => {
+          this.view.mountedPoint?.appendChild(vTreeNode.item);
+        });
+        this.root = this.root.next;
+        this.root.previous = null;
+      } else {
+        // 根为空文件夹
+        this.view.mountedPoint?.appendChild(this.root.item);
+      }
+    }
+    return this;
+  }
+  
+  unmount(): this {
+    this.view.mountedPoint?.empty();
+    return this;
+  }
+
+  cursorUp() {
+    if (!this.focused) {
+      if (this.actived?.previous) {
+        this.focused = this.actived.previous;
+      } else {
+        let currentNode = this.root;
+        while (currentNode.next) {
+          currentNode = currentNode.next;
+        }
+        this.focused = currentNode;
+      }
+      this.focused.focus();
+    } else if (this.focused.previous) {
+      this.focused.unfocus();
+      this.focused = this.focused.previous;
+      this.focused?.focus();
     }
   }
 
-  focus(node: ZoneNode) {
-    this.focused?.unfocus();
-    node.focus();
-    this.focused = node;
+  cursorDown() {
+    if (!this.focused) {
+      this.focused = this.actived?.next ?? this.root;
+      this.focused.focus();
+    } else if (this.focused.next) {
+      this.focused.unfocus();
+      this.focused = this.focused.next;
+      this.focused?.focus();
+    }
   }
 }

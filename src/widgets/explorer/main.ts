@@ -6,10 +6,12 @@ import { ZoneView, VIEW_TYPE }  from './view';
 
 export interface Settings {
   enableWidget: boolean;
+  enableRoot: boolean;
 }
 
 export const SETTINGS: Settings = {
   enableWidget: false,
+  enableRoot: false,
 }
 
 export class WidgetExplorer extends Widget {
@@ -18,9 +20,10 @@ export class WidgetExplorer extends Widget {
   explorerIcon: HTMLElement | null = null;
 
   displaySettingTab(containerEl: HTMLElement): void {
+    new Setting(containerEl).setName('Zone 文件浏览器').setHeading();
     new Setting(containerEl)
-      .setName('Zone 文件浏览器')
-      .setDesc('特殊的文件浏览器')
+      .setName('开启文件浏览器')
+      .setDesc('全局开关，')
       .addToggle(toggle => toggle
         .setValue(this.settings.enableWidget)
         .onChange(async value => {
@@ -32,6 +35,15 @@ export class WidgetExplorer extends Widget {
             this.disableWidget();
           }
         }));
+    new Setting(containerEl)
+      .setName('显示根目录')
+      .setDesc('点击工具栏图标重启 Zone 文件管理器后生效')
+      .addToggle(toggle => toggle
+        .setValue(this.settings.enableRoot)
+        .onChange(async value => {
+          this.settings.enableRoot = value;
+          await this.plugin.saveSettings();
+        }));
   }
 
   async onload() {
@@ -39,7 +51,7 @@ export class WidgetExplorer extends Widget {
       this.enableWidget();
     }
     // 注册 View
-    this.plugin.registerView(VIEW_TYPE, (leaf) => new ZoneView(leaf));
+    this.plugin.registerView(VIEW_TYPE, (leaf) => new ZoneView(this, leaf));
   }
 
   onunload(): void {
