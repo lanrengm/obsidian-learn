@@ -4,7 +4,7 @@
 
 // VT - Tree 虚拟树
 
-import { TAbstractFile, TFolder, TFile, WorkspaceLeaf } from "obsidian";
+import { TAbstractFile, TFolder, TFile, WorkspaceLeaf, Menu, Notice } from "obsidian";
 import { ZoneView } from "./view";
 
 
@@ -130,6 +130,12 @@ export class VTreeNode {
 
   onAuxClick = (evt: MouseEvent) => {
     this.focus();
+    let m = new Menu();
+    m.addItem(menuItem => menuItem
+      .setTitle('Hi')
+      .setIcon('folder')
+      .onClick(() => new Notice('hi')));
+    m.showAtMouseEvent(evt);
   }
 
   /* dom */
