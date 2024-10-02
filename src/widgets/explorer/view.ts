@@ -1,4 +1,4 @@
-import { View, TFile, WorkspaceLeaf } from 'obsidian';
+import { View, TFile, WorkspaceLeaf, setIcon, Notice, setTooltip } from 'obsidian';
 
 import { VTree } from './tree';
 import { WidgetExplorer } from './main';
@@ -13,6 +13,8 @@ export class ZoneView extends View {
   navFilesContainer: HTMLElement;
   mountedPoint: HTMLElement | null;
   paddingLeft: string = '24px';
+  rootTree: VTree;
+  focusedTree: VTree | null;
   usedTree: VTree | null = null;
 
   constructor(widget: WidgetExplorer, leaf: WorkspaceLeaf) {
@@ -29,6 +31,18 @@ export class ZoneView extends View {
   }
 
   async onOpen(): Promise<void> {
+    let navHeader = this.containerEl.createDiv({cls: 'nav-header'});
+    let navButtonsContainer = navHeader.createDiv({cls: 'nav-buttons-container'});
+    let btn1 = navButtonsContainer.createDiv({cls: 'clickable-icon nav-action-button'});
+    setIcon(btn1, 'list-tree');
+    setTooltip(btn1, 'focus on root path');
+    btn1.addEventListener('click', (evt: MouseEvent) => {
+      this.rootTree = new VTree({view: this, rootPath: '/'});
+      this.usedTree = this.rootTree;
+      this.usedTree.mount();
+    });
+
+
     this.navFilesContainer = this.containerEl.createDiv({
       cls: ['nav-files-container', 'node-insert-event', 'show-unsupported'],
       attr: {'tabindex': '1'}, // 使 div 能够监听键盘事件
@@ -39,7 +53,8 @@ export class ZoneView extends View {
       attr: {'style': 'padding: var(--nav-item-padding);'}
     }).getCssPropertyValue('padding-left');
     // 显示 tree
-    this.usedTree = new VTree({view: this, rootPath: '/'});
+    this.rootTree = new VTree({view: this, rootPath: '/'});
+    this.usedTree = this.rootTree;
     this.usedTree.mount();
     // key event
     this.registerKeyEvent();

@@ -131,6 +131,13 @@ export class VTreeNode {
   onAuxClick = (evt: MouseEvent) => {
     this.focus();
     let m = new Menu();
+    if (this.isFolder) {
+      m.addItem(menuItem => menuItem.setTitle('focus on this folder').setIcon('eye').onClick(() => {
+        this.vTree.view.focusedTree = new VTree({view: this.vTree.view, rootPath: this.tF!.path});
+        this.vTree.view.usedTree = this.vTree.view.focusedTree;
+        this.vTree.view.usedTree.mount();
+      }));
+    }
     m.addItem(menuItem => menuItem
       .setTitle('Hi')
       .setIcon('folder')
@@ -330,12 +337,12 @@ export class VTree {
   actived: VTreeNode | null = null;
 
   constructor(props: { view: ZoneView, rootPath: string }) {
-    const { view } = props;
+    const { view, rootPath } = props;
     this.view = view;
     this.root = new VTreeNode({
       vTree: this,
       depth: 0,
-      tF: this.view.app.vault.getFolderByPath('/'),
+      tF: this.view.app.vault.getFolderByPath(rootPath),
     });
   }
   
