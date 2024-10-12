@@ -59,7 +59,7 @@ export class WidgetExplorer extends Widget {
   }
 
   enableWidget(): void {
-    this.plugin.addRibbonIcon('list-tree', 'Restart zone explorer.', e => {
+    this.explorerIcon = this.plugin.addRibbonIcon('list-tree', 'Restart zone explorer.', e => {
       this.hideExplorer();
       this.showExplorer();
     });

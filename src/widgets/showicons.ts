@@ -83,6 +83,9 @@ export class WidgetShowIcons extends Widget {
 const VIEW_TYPE = "builtin-icons-view";
 
 class View extends ItemView {
+  lucide_ids = getIconIds().filter(id => id.startsWith("lucide-")).map(id => id.slice(7));
+  other_ids = getIconIds().filter(id => !id.startsWith("lucide-"));
+
   getViewType() {
     return VIEW_TYPE;
   }
@@ -113,25 +116,41 @@ class View extends ItemView {
 				border-radius: var(--radius-s);
 			}
 		`});
-
-    let lucide_ids = getIconIds()
-      .filter(id => id.startsWith("lucide-"))
-      .map(id => id.slice(7));
-    contentEl.createEl("p", { text: `${lucide_ids.length} Lucide icons.` });
-    this.renderIconTable(lucide_ids);
-
-    let other_ids = getIconIds().filter(id => !id.startsWith("lucide-"));
-    contentEl.createEl("p", { text: `${other_ids.length} other icons.` });
-    this.renderIconTable(other_ids);
+    const searchEl = contentEl.createEl('input', { type: 'text' });
+    const iconsTable = contentEl.createDiv();
+    searchEl.addEventListener('input', (evt: InputEvent) => {
+      const searchEl = evt.target as HTMLInputElement;
+      const value = searchEl.value;
+      iconsTable.empty();
+      this.renderTable(String(value), iconsTable);
+    });
+    this.renderTable('', iconsTable);
   }
 
   async onClose() {
     this.containerEl.empty();
   }
 
-  renderIconTable(ids: string[]) {
-    const { contentEl } = this;
-    const tableEl = contentEl.createDiv("icon-table");
+  renderTable(value: string, iconsTable: HTMLElement) {
+    if ( value === '' ) {
+      iconsTable.createEl("p", { text: `${this.lucide_ids.length} Lucide icons.` });
+      this.renderIconTable(this.lucide_ids, iconsTable);
+  
+      iconsTable.createEl("p", { text: `${this.other_ids.length} other icons.` });
+      this.renderIconTable(this.other_ids, iconsTable);
+    } else {
+      let lucide_ids = this.lucide_ids.filter(id => id.includes(value));
+      iconsTable.createEl("p", { text: `${lucide_ids.length} Lucide icons.` });
+      this.renderIconTable(lucide_ids, iconsTable);
+
+      let other_ids = this.other_ids.filter(id => id.includes(value));
+      iconsTable.createEl("p", { text: `${other_ids.length} other icons.` });
+      this.renderIconTable(other_ids, iconsTable);
+    }
+  }
+
+  renderIconTable(ids: string[], iconsTable: HTMLElement) {
+    const tableEl = iconsTable.createDiv("icon-table");
     ids.forEach((id) => {
       let iconEl = tableEl.createDiv("icon-item");
       setIcon(iconEl, id);
