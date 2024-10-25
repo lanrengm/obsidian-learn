@@ -1,9 +1,9 @@
 {
-  "id": "obsidian-lanren-dev",
-  "name": "黑曜石懒人开发",
+  "id": "learn-obsidian",
+  "name": "学习-黑曜石开发",
   "version": "0.0.4",
   "minAppVersion": "1.6.7",
-  "description": "Obsidian 开发",
+  "description": "学习-黑曜石开发",
   "author": "Lanren",
   "authorUrl": "https://github.com/lanrengm",
   "isDesktopOnly": false

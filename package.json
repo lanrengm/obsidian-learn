@@ -5,14 +5,13 @@
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs dev",
-    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs",
-    "version": "node version-bump.mjs && git add manifest.json versions.json",
-    "rem": "yarn run build && xcopy /s/y dist D:\\Dropbox\\.obsidian\\plugins\\plugin-1\\",
-    "test": "tsc test/test.ts && node test/test.js"
+    "build": "node esbuild.config.mjs",
+    "version": "node version-bump.mjs && git add manifest.json versions.json"
   },
   "keywords": [],
   "author": "",
   "license": "MIT",
+  "dependencies": {},
   "devDependencies": {
     "@types/node": "^16.11.6",
     "@typescript-eslint/eslint-plugin": "5.29.0",
@@ -22,6 +21,5 @@
     "obsidian": "latest",
     "tslib": "2.4.0",
     "typescript": "4.7.4"
-  },
-  "dependencies": {}
+  }
 }
