@@ -4,10 +4,9 @@
   "description": "This is a sample plugin for Obsidian (https://obsidian.md)",
   "main": "main.js",
   "scripts": {
-    "dev": "node esbuild.config.mjs",
-    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production  && yarn dist",
+    "dev": "node esbuild.config.mjs dev",
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs",
     "version": "node version-bump.mjs && git add manifest.json versions.json",
-    "dist": "xcopy /y manifest.json .\\dist\\ && xcopy /y main.js .\\dist\\ && xcopy /y styles.css .\\dist\\",
     "rem": "yarn run build && xcopy /s/y dist D:\\Dropbox\\.obsidian\\plugins\\plugin-1\\",
     "test": "tsc test/test.ts && node test/test.js"
   },
