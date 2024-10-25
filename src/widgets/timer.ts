@@ -1,20 +1,10 @@
 // 计时器工具
-import { Setting, setIcon } from 'obsidian';
-import { Widget } from './widget';
-
-
-type StatusBarIconButton = HTMLElement;
-
-export interface Settings {
-  enableWidget: boolean;
-}
-
-export const SETTINGS: Settings = {
-  enableWidget: false,
-}
+import { Setting, setIcon } from "obsidian";
+import { Widget } from "../widget";
+import { Settings } from "../settings";
 
 export class WidgetTimer extends Widget {
-  settings: Settings;
+  settings: Settings["timer"];
 
   timerDriver: NodeJS.Timer | null = null;
   timerCount: number = 0;
@@ -24,20 +14,16 @@ export class WidgetTimer extends Widget {
   resetBtn: HTMLElement | null;
 
   displaySettingTab(containerEl: HTMLElement): void {
-    new Setting(containerEl)
-      .setName('计时器')
-      .setDesc('显示在状态栏的小工具，当做简化版的番茄钟来使用，用来统计工作时长')
-      .addToggle(toggle => toggle
-        .setValue(this.settings.enableWidget)
-        .onChange(async (value) => {
-          this.settings.enableWidget = value;
-          await this.plugin.saveSettings();
-          if (value) {
-            this.enableWidget();
-          } else {
-            this.disableWidget();
-          }
-        }));
+    const st1 = new Setting(containerEl);
+    st1.setName("计时器").setDesc("显示在状态栏的小工具，当做简化版的番茄钟来使用，用来统计工作时长");
+    st1.addToggle((toggle) => {
+      toggle.setValue(this.settings.enableWidget);
+      toggle.onChange(async (value) => {
+        this.settings.enableWidget = value;
+        await this.plugin.saveSettings();
+        value ? this.enableWidget() : this.disableWidget();
+      });
+    });
   }
 
   onload(): void {
@@ -49,7 +35,7 @@ export class WidgetTimer extends Widget {
   onunload(): void {
     this.disableWidget();
   }
-  
+
   enableWidget(): void {
     const { plugin } = this;
 
@@ -58,39 +44,37 @@ export class WidgetTimer extends Widget {
     this.resetBtn = plugin.addStatusBarItem();
     const { timerLabel, playBtn, resetBtn } = this;
 
-    timerLabel.setText('00:00:00');
-    setIcon(playBtn, 'play');
-    setIcon(resetBtn, 'rotate-ccw');
-    
-    playBtn.addEventListener('click', () => {
+    timerLabel.setText("00:00:00");
+    setIcon(playBtn, "play");
+    setIcon(resetBtn, "rotate-ccw");
+
+    playBtn.addEventListener("click", () => {
       if (this.timerDriver) {
         // If the timer is running, to pause it.
-        setIcon(playBtn, 'play');
+        setIcon(playBtn, "play");
         window.clearInterval(this.timerDriver!);
         this.timerDriver = null;
       } else {
         // If the timer was paused, to run it.
-        setIcon(playBtn, 'pause');
+        setIcon(playBtn, "pause");
         this.timerDriver = setInterval(() => {
           this.timerCount += 1;
-          timerLabel.setText(`${
-            String(Math.floor(this.timerCount / 3600)).padStart(2, '0')
-          }:${
-            String(Math.floor(this.timerCount / 60)).padStart(2, '0')
-          }:${
-            String(this.timerCount % 60).padStart(2, '0')
-          }`);
+          timerLabel.setText(
+            `${String(Math.floor(this.timerCount / 3600)).padStart(2, "0")}:${String(Math.floor(this.timerCount / 60)).padStart(2, "0")}:${String(
+              this.timerCount % 60
+            ).padStart(2, "0")}`
+          );
         }, 1000);
       }
     });
-    resetBtn.addEventListener('click', () => {
+    resetBtn.addEventListener("click", () => {
       if (this.timerDriver) {
         window.clearInterval(this.timerDriver!);
         this.timerDriver = null;
-        setIcon(playBtn, 'play');
+        setIcon(playBtn, "play");
       }
       this.timerCount = 0;
-      timerLabel.setText('00:00:00');
+      timerLabel.setText("00:00:00");
     });
   }
 

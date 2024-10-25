@@ -1,21 +1,12 @@
 import { Setting, WorkspaceLeaf } from "obsidian";
-import { Widget } from '../widget';
+import { Widget } from '../../widget';
+import { Settings } from '../../settings';
 
 import { ZoneView, VIEW_TYPE }  from './view';
 
 
-export interface Settings {
-  enableWidget: boolean;
-  enableRoot: boolean;
-}
-
-export const SETTINGS: Settings = {
-  enableWidget: false,
-  enableRoot: false,
-}
-
 export class WidgetExplorer extends Widget {
-  settings: Settings;
+  settings: Settings['explorer'];
 
   explorerIcon: HTMLElement | null = null;
 

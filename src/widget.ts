@@ -1,7 +1,7 @@
 // Widget 是插件的插件，方便在一个 Obsidian Plugin 中添加多个互相独立的功能
 // 本文件用来规范 Widget 的格式
 
-import Main from "../main";
+import Main from "./main";
 
 export class Widget {
   plugin: Main;
@@ -12,13 +12,13 @@ export class Widget {
     this.settings = settings;
   }
 
-  displaySettingTab(containerEl: HTMLElement): void {}
+  displaySettingTab(containerEl: HTMLElement): void { }
 
-  onload(): void {}
+  onload(): void { }
 
-  onunload(): void {}
+  onunload(): void { }
 
-  enableWidget(): void {}
+  enableWidget(): void { }
 
-  disableWidget(): void {}
+  disableWidget(): void { }
 }

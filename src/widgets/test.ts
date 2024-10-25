@@ -1,22 +1,11 @@
 import { Setting, Modal, Editor, MarkdownView } from "obsidian";
 
-import { Widget } from './widget';
+import { Widget } from '../widget';
+import { Settings } from '../settings';
 
-
-export interface Settings {
-  enableWidget: boolean;
-  setting1: string;
-  setting2: string;
-}
-
-export const SETTINGS: Settings = {
-  enableWidget: false,
-  setting1: 'setting 1 default',
-  setting2: 'setting 2 default',
-}
 
 export class WidgetTest extends Widget {
-  settings: Settings;
+  settings: Settings['test'];
 
   displaySettingTab(containerEl: HTMLElement) {
     new Setting(containerEl).setName('Test Widget').setHeading();

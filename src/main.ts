@@ -1,40 +1,14 @@
-import { Plugin, PluginSettingTab } from 'obsidian';
-import { Widget } from './widgets/widget';
+import { Plugin, PluginSettingTab } from "obsidian";
+import { Widget } from "./widget";
+import { SETTINGS, Settings } from "./settings";
 
-import * as showicons from './widgets/showicons';
-import * as test from './widgets/test';
-import * as timer from './widgets/timer';
-import * as explorer from './widgets/explorer/main';
-import * as exp from 'constants';
+import * as test from "./widgets/test";
+import * as timer from "./widgets/timer";
+import * as explorer from "./widgets/explorer/main";
 
-
-interface Settings {
-  test: test.Settings;
-  showIcons: showicons.Settings;
-  timer: timer.Settings;
-  explorer: explorer.Settings;
+interface Widgets {
+  [key: string]: Widget;
 }
-
-const SETTINGS: Settings = {
-  test: test.SETTINGS,
-  showIcons: showicons.SETTINGS,
-  timer: timer.SETTINGS,
-  explorer: explorer.SETTINGS,
-}
-
-class SettingTab extends PluginSettingTab {
-  plugin: Main;
-
-  display(): void {
-    const { containerEl } = this;
-    const { widgets } = this.plugin;
-
-    containerEl.empty();
-    Object.keys(widgets).forEach(key => widgets[key].displaySettingTab(containerEl));
-  }
-}
-
-interface Widgets { [key: string]: Widget }
 
 export default class Main extends Plugin {
   settings: Settings;
@@ -48,18 +22,17 @@ export default class Main extends Plugin {
 
     this.widgets = {
       test: new test.WidgetTest(this, this.settings.test),
-      showicons: new showicons.WidgetShowIcons(this, this.settings.showIcons),
       timer: new timer.WidgetTimer(this, this.settings.timer),
       explorer: new explorer.WidgetExplorer(this, this.settings.explorer),
-    }
+    };
     // 等到布局结束再启动插件，不然 Leaf 创建会出问题
     this.app.workspace.onLayoutReady(() => {
-      Object.keys(this.widgets).forEach(key => this.widgets[key].onload());
+      Object.keys(this.widgets).forEach((key) => this.widgets[key].onload());
     });
   }
 
   onunload() {
-    Object.keys(this.widgets).forEach(key => this.widgets[key].onunload());
+    Object.keys(this.widgets).forEach((key) => this.widgets[key].onunload());
   }
 
   async loadSettings() {
@@ -68,5 +41,17 @@ export default class Main extends Plugin {
 
   async saveSettings() {
     await this.saveData(this.settings);
+  }
+}
+
+class SettingTab extends PluginSettingTab {
+  plugin: Main;
+
+  display(): void {
+    const { containerEl } = this;
+    const { widgets } = this.plugin;
+
+    containerEl.empty();
+    Object.keys(widgets).forEach((key) => widgets[key].displaySettingTab(containerEl));
   }
 }
