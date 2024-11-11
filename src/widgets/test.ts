@@ -1,4 +1,4 @@
-import { Setting, Modal, Editor, MarkdownView } from "obsidian";
+import { Setting, Modal, Editor, MarkdownView, ItemView, WorkspaceLeaf, ButtonComponent, Notice, TextComponent } from "obsidian";
 
 import { Widget } from '../widget';
 import { Settings } from '../settings';
@@ -25,30 +25,6 @@ export class WidgetTest extends Widget {
           }
         })
       );
-
-    new Setting(containerEl)
-      .setName('xxx')
-      .setDesc('xxx')
-      .addText(text => text
-        .setPlaceholder('Setting 1 placeholder')
-        .setValue(this.settings.setting1)
-        .onChange(async (value) => {
-          this.settings.setting1 = value;
-          await this.plugin.saveSettings();
-        }));
-
-    new Setting(containerEl)
-      .setName('Setting #2')
-      .setDesc('Setting 2 desc.')
-      .addText(text => text
-        .setPlaceholder('Setting 2 placeholder')
-        .setValue(this.settings.setting2)
-        .onChange(async (value) => {
-          this.settings.setting2 = value;
-          await this.plugin.saveSettings();
-        }));
-    
-    new Setting(containerEl).setName('其它组件').setHeading();
   }
 
   onload() {
@@ -61,63 +37,56 @@ export class WidgetTest extends Widget {
 
   enableWidget(): void {
     const { plugin } = this;
-    // This adds a simple command that can be triggered anywhere
-    plugin.addCommand({
-      id: 'open-sample-modal-simple',
-      name: 'Open sample modal (simple)',
-      callback: () => {
-        new MyModal(plugin.app).open();
+    this.plugin.registerView(VIEW_TYPE_TEST, leaf => new TestView(leaf));
+    this.plugin.addRibbonIcon('alert-triangle', 'Test View', async evt => {
+      const { workspace } = this.plugin.app;
+      let leaf: WorkspaceLeaf | null = null;
+      const leaves = workspace.getLeavesOfType(VIEW_TYPE_TEST);
+      if (leaves.length > 0) {
+        leaf = leaves[0];
+      } else {
+        leaf = workspace.getLeaf(false);
+        await leaf?.setViewState({ type: VIEW_TYPE_TEST, active: true});
       }
+      workspace.revealLeaf(leaf);
     });
-    // This adds an editor command that can perform some operation on the current editor instance
-    plugin.addCommand({
-      id: 'sample-editor-command',
-      name: 'Sample editor command',
-      editorCallback: (editor: Editor, view: MarkdownView) => {
-        console.log(editor.getSelection());
-        editor.replaceSelection('Sample Editor Command');
-      }
-    });
-    // This adds a complex command that can check whether the current state of the app allows execution of the command
-    let c = plugin.addCommand({
-      id: 'open-sample-modal-complex',
-      name: 'Open sample modal (complex)',
-      checkCallback: (checking: boolean) => {
-        // Conditions to check
-        const markdownView = plugin.app.workspace.getActiveViewOfType(MarkdownView);
-        if (markdownView) {
-          // If checking is true, we're simply "checking" if the command can be run.
-          // If checking is false, then we want to actually perform the operation.
-          if (!checking) {
-            new MyModal(plugin.app).open();
-          }
-
-          // This command will only show up in Command Palette when the check function returns true
-          return true;
-        }
-      }
-    });
-
   }
 
-  disableWidget(): void {
-  }
+  disableWidget(): void {  }
 }
 
-class MyModal extends Modal {
+const VIEW_TYPE_TEST = 'view-type-test';
 
-  onOpen() {
-    const { titleEl, contentEl } = this;
-    titleEl.setText('Title');
-    contentEl.setText('Woah!');
-    const c1 = contentEl.createDiv();
-    c1.setText('xxx');
-
+class TestView extends ItemView {
+  icon: string = 'alert-triangle';
+  getViewType(): string {
+    return VIEW_TYPE_TEST;
   }
-
-  onClose() {
-    const { titleEl, contentEl } = this;
-    titleEl.empty();
+  getDisplayText(): string {
+    return 'Test View';
+  }
+  protected async onOpen(): Promise<void> {
+    const { contentEl } = this;
     contentEl.empty();
+    new ButtonComponent(contentEl).setClass('setBtnClass').setButtonText('开始');
+    contentEl.createEl('div', {
+      attr: {
+        style: `height: 10px`
+      }
+    })
+    new ButtonComponent(contentEl).setClass('setBtnClass').setButtonText('暂停');
+    contentEl.createEl('div', {
+      attr: {
+        style: `height: 10px`
+      }
+    })
+    new ButtonComponent(contentEl).setButtonText('结束').setClass('setBtnClass');
+    contentEl.createEl('style', {
+      text: `
+        .setBtnClass {
+          width: 100%;
+        }
+      `
+    })
   }
 }

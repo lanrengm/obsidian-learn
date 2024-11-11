@@ -1,5 +1,5 @@
 // 计时器工具
-import { Setting, setIcon } from "obsidian";
+import { Setting, setIcon, Notice } from "obsidian";
 import { Widget } from "../widget";
 import { Settings } from "../settings";
 
@@ -14,6 +14,7 @@ export class WidgetTimer extends Widget {
   resetBtn: HTMLElement | null;
 
   displaySettingTab(containerEl: HTMLElement): void {
+    new Setting(containerEl).setName('Timer').setHeading();
     const st1 = new Setting(containerEl);
     st1.setName("计时器").setDesc("显示在状态栏的小工具，当做简化版的番茄钟来使用，用来统计工作时长");
     st1.addToggle((toggle) => {

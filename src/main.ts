@@ -44,7 +44,7 @@ export default class Main extends Plugin {
   }
 }
 
-class SettingTab extends PluginSettingTab {
+export class SettingTab extends PluginSettingTab {
   plugin: Main;
 
   display(): void {

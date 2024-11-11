@@ -1,8 +1,6 @@
 export interface Settings {
   test: {
     enableWidget: boolean;
-    setting1: string;
-    setting2: string;
   };
   showIcons: {
     enableWidget: boolean;
@@ -19,8 +17,6 @@ export interface Settings {
 export const SETTINGS: Settings = {
   test: {
     enableWidget: false,
-    setting1: 'setting 1 default',
-    setting2: 'setting 2 default',
   },
   showIcons: {
     enableWidget: false,
